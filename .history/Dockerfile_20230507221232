@@ -2,7 +2,8 @@ FROM node:16
 
 USER root
 
-RUN apt-get update && apt-get install -y ffmpeg
+RUN apt-get -y update
+RUN apt-get install -y ffmpeg
 
 WORKDIR /usr/src/app
 
