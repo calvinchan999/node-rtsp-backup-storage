@@ -1,7 +1,7 @@
 require("dotenv/config");
 const config = {
   port: 5000,
-  httpProtocol: "http",
+  httpProtocol: "https",
   rtspProtocol: "rtsp",
   rtspServerUrl:
     process.env.RTSP_SERVER_URL ?? "media-vm.australiaeast.cloudapp.azure.com",
