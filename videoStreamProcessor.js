@@ -61,7 +61,7 @@ class VideoStreamProcessor {
             uploadOptions.maxBuffers,
             {
               blobHTTPHeaders: {
-                blobContentType: "video/MP2T",
+                blobContentType: "video/x-flv", // video/MP2T
               },
               metadata: {
                 source: "rtsp",
@@ -129,6 +129,32 @@ class VideoStreamProcessor {
       // );
 
       // mp4
+      // const process = spawn(
+      //   "ffmpeg",
+      //   [
+      //     "-rtsp_transport",
+      //     "tcp",
+      //     "-i",
+      //     rtspSource.url,
+      //     "-reset_timestamps",
+      //     "1",
+      //     "-metadata",
+      //     `title=${rtspSource.name}_${moment().format("YYYY-MM-DD_HH:mm:ss")}`,
+      //     "-an",
+      //     "-f",
+      //     "segment",
+      //     "-segment_time",
+      //     "1800",
+      //     "-segment_format",
+      //     "mpegts",
+      //     "-strftime",
+      //     "1",
+      //     `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.mp4`,
+      //   ],
+      //   { detached: true, stdio: "ignore" }
+      // );
+
+      // flv
       const process = spawn(
         "ffmpeg",
         [
@@ -146,10 +172,10 @@ class VideoStreamProcessor {
           "-segment_time",
           "1800",
           "-segment_format",
-          "mpegts",
+          "flv",
           "-strftime",
           "1",
-          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.mp4`,
+          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.flv`,
         ],
         { detached: true, stdio: "ignore" }
       );
