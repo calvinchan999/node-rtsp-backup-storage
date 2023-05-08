@@ -36,7 +36,8 @@ class VideoStreamProcessor {
       const files = await fs.promises.readdir(
         videoFolderPath + "/" + directory
       );
-      let total = files.length - 1;
+
+      let total = files.length > 1 ? files.length - 1 : files.length;
 
       // for (const file of files) {
       for (let i = 0; i < total; i++) {
