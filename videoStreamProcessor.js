@@ -101,7 +101,34 @@ class VideoStreamProcessor {
         fs.mkdirSync(videoFolderPath);
       }
 
-      // Create video thread
+      // Create video thread 
+      // mpeg-ts
+      // const process = spawn(
+      //   "ffmpeg",
+      //   [
+      //     "-rtsp_transport",
+      //     "tcp",
+      //     "-i",
+      //     rtspSource.url,
+      //     "-reset_timestamps",
+      //     "1",
+      //     "-metadata",
+      //     `title=${rtspSource.name}_${moment().format("YYYY-MM-DD_HH:mm:ss")}`,
+      //     "-an",
+      //     "-f",
+      //     "segment",
+      //     "-segment_time",
+      //     "1800",
+      //     "-segment_format",
+      //     "mpegts",
+      //     "-strftime",
+      //     "1",
+      //     `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.ts`,
+      //   ],
+      //   { detached: true, stdio: "ignore" }
+      // );
+
+      // mp4
       const process = spawn(
         "ffmpeg",
         [
@@ -122,7 +149,7 @@ class VideoStreamProcessor {
           "mpegts",
           "-strftime",
           "1",
-          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.ts`,
+          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.mp4`,
         ],
         { detached: true, stdio: "ignore" }
       );
