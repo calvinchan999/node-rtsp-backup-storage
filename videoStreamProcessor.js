@@ -267,16 +267,16 @@ class VideoStreamProcessor {
       } else {
         // Non-Windows-specific code goes here
         try {
-          process.kill(pid, 0);
+          process.kill(thread.pid, 0);
         } catch (error) {
           if (error.code === "ESRCH") {
-            console.log(`Process with PID ${pid} does not exist.`);
+            console.log(`Process with PID ${thread.pid} does not exist.`);
             return;
           }
         }
-        
-        process.kill(pid, "SIGKILL");
-        console.log(`Process with PID ${pid} has been killed.`);
+
+        process.kill(thread.pid, "SIGKILL");
+        console.log(`Process with PID ${thread.pid} has been killed.`);
       }
     }
   }
