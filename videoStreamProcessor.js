@@ -3,6 +3,8 @@
 const { spawn, exec } = require("child_process");
 const fs = require("fs");
 const moment = require("moment");
+const ffmpeg = require("fluent-ffmpeg");
+const path = require("path");
 
 // Define VideoStreamProcessor class
 class VideoStreamProcessor {
@@ -37,11 +39,10 @@ class VideoStreamProcessor {
         videoFolderPath + "/" + directory
       );
 
-      let total = files.length > 1 ? files.length - 1 : files.length;
+      // let total = files.length > 1 ? files.length - 1 : files.length;
+      const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
-      // for (const file of files) {
-      for (let i = 0; i < total; i++) {
-        const file = files[i];
+      for (const file of mp4Files) {
         if (file) {
           const blobName = `${directory}/${file}`;
           const blobClient = await this.blobContainerClient.getBlobClient(
@@ -85,7 +86,7 @@ class VideoStreamProcessor {
         }
       }
     }
-    await this.stop();
+    // await this.stop();
   }
 
   async start() {
@@ -104,32 +105,6 @@ class VideoStreamProcessor {
 
       // Create video thread
       // mpeg-ts
-      // const process = spawn(
-      //   "ffmpeg",
-      //   [
-      //     "-rtsp_transport",
-      //     "tcp",
-      //     "-i",
-      //     rtspSource.url,
-      //     "-reset_timestamps",
-      //     "1",
-      //     "-metadata",
-      //     `title=${rtspSource.name}_${moment().format("YYYY-MM-DD_HH:mm:ss")}`,
-      //     "-an",
-      //     "-f",
-      //     "segment",
-      //     "-segment_time",
-      //     "1800",
-      //     "-segment_format",
-      //     "mpegts",
-      //     "-strftime",
-      //     "1",
-      //     `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.ts`,
-      //   ],
-      //   { detached: true, stdio: "ignore" }
-      // );
-
-      // mp4
       const process = spawn(
         "ffmpeg",
         [
@@ -147,41 +122,13 @@ class VideoStreamProcessor {
           "-segment_time",
           "1800",
           "-segment_format",
-          "mp4",
+          "mpegts",
           "-strftime",
           "1",
-          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.mp4`,
+          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.ts`,
         ],
         { detached: true, stdio: "ignore" }
       );
-
-      // flv
-      // const process = spawn(
-      //   "ffmpeg",
-      //   [
-      //     "-rtsp_transport",
-      //     "tcp",
-      //     "-i",
-      //     rtspSource.url,
-      //     "-reset_timestamps",
-      //     "1",
-      //     "-metadata",
-      //     `title=${rtspSource.name}_${moment().format("YYYY-MM-DD_HH:mm:ss")}`,
-      //     "-an",
-      //     "-f",
-      //     "hls",
-      //     "-hls_time",
-      //     "2",
-      //     "-hls_list_size",
-      //     "3",
-      //     "-hls_flags",
-      //     "delete_segments",
-      //     "-strftime",
-      //     "1",
-      //     `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.m3u8`,
-      //   ],
-      //   { detached: true, stdio: "ignore" }
-      // );
 
       process.channelName = rtspSource.name;
 
@@ -195,12 +142,46 @@ class VideoStreamProcessor {
         console.log(
           `Process ${process.channelName} has exited with code ${code} and signal ${signal}`
         );
-        this.processingVideos.delete(process.channelName);
+
+        const files = await fs.promises.readdir(
+          "./video/" + process.channelName
+        );
+
+        const tsFiles = files.filter((file) => file.endsWith(".ts"));
+
+        for (const file of tsFiles) {
+          const fileNameWithoutExtension = path.parse(file).name;
+
+          const inputName = `./video/${process.channelName}/${file}`;
+          const outputName = `./video/${
+            process.channelName
+          }/${fileNameWithoutExtension}_${moment().format(
+            "YYYY-MM-DD_HH-mm-ss"
+          )}.mp4`;
+
+          await ffmpeg(inputName)
+            .outputOptions("-c:v", "libx264")
+            .outputOptions("-movflags", "+faststart")
+            .output(outputName)
+            .on("end", () => {
+              console.log("Conversion complete");
+              fs.unlinkSync(inputName);
+            })
+            .on("error", (err) => {
+              console.log(`Conversion error: ${err.message}`);
+              fs.unlinkSync(inputName);
+            })
+            .run();
+        }
+
+        await this.processingVideos.delete(process.channelName);
+
         const videoSources = this.getVideoSources();
         const filteredSources = videoSources.filter(
           (source) => source.name !== process.channelName
         );
-        this.setVideoSources(filteredSources);
+        await this.setVideoSources(filteredSources);
+        await this.terminateProcessByName(process.channelName);
       });
 
       // Add thread to thread queue
@@ -246,9 +227,52 @@ class VideoStreamProcessor {
   //   }
   // }
 
+  async terminateProcessByName(channelName) {
+    const thread = this.threadQueue.find(
+      (data) => data.channelName === channelName
+    );
+    if (thread) {
+      console.log(`kill ${thread.pid}`);
+      console.log(`kill ${thread.channelName}`);
+      thread.kill();
+      if (process.platform === "win32") {
+        // Windows-specific code goes here
+        const terminateProcess = (pid) => {
+          return new Promise((resolve, reject) => {
+            exec(`tasklist /fi "PID eq ${pid}"`, (error, stdout, stderr) => {
+              if (error) {
+                reject(error);
+              } else {
+                const isRunning =
+                  stdout.toLowerCase().indexOf(`pid: ${pid}`) !== -1;
+                if (isRunning) {
+                  exec(
+                    `taskkill /pid ${pid} /T /F`,
+                    (error, stdout, stderr) => {
+                      if (error) {
+                        reject(error);
+                      } else {
+                        resolve();
+                      }
+                    }
+                  );
+                } else {
+                  resolve();
+                }
+              }
+            });
+          });
+        };
+        terminateProcess(thread.pid);
+      } else {
+        // Non-Windows-specific code goes here
+        process.kill(thread.pid, "SIGKILL");
+      }
+    }
+  }
+
   async stop() {
     for (const thread of this.threadQueue) {
-      // const pid = this.processingVideos.get(thread.args[5]);
       if (thread) {
         console.log(`kill ${thread.pid}`);
         console.log(`kill ${thread.channelName}`);
