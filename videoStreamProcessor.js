@@ -29,7 +29,7 @@ class VideoStreamProcessor {
 
   async uploadToBlobContainer(videoFolderPath) {
     console.log("uploadtoblobcontainer");
-    
+
     const directorys = await fs.promises.readdir(videoFolderPath);
 
     for (const directory of directorys) {
@@ -62,10 +62,10 @@ class VideoStreamProcessor {
             uploadOptions.maxBuffers,
             {
               blobHTTPHeaders: {
-                blobContentType: "video/x-flv", // video/MP2T
+                blobContentType: "video/mp4", // video/MP2T
               },
               metadata: {
-                source: "rtsp",
+                source: file,
               },
             }
           );
@@ -102,7 +102,7 @@ class VideoStreamProcessor {
         fs.mkdirSync(videoFolderPath);
       }
 
-      // Create video thread 
+      // Create video thread
       // mpeg-ts
       // const process = spawn(
       //   "ffmpeg",
@@ -130,32 +130,6 @@ class VideoStreamProcessor {
       // );
 
       // mp4
-      // const process = spawn(
-      //   "ffmpeg",
-      //   [
-      //     "-rtsp_transport",
-      //     "tcp",
-      //     "-i",
-      //     rtspSource.url,
-      //     "-reset_timestamps",
-      //     "1",
-      //     "-metadata",
-      //     `title=${rtspSource.name}_${moment().format("YYYY-MM-DD_HH:mm:ss")}`,
-      //     "-an",
-      //     "-f",
-      //     "segment",
-      //     "-segment_time",
-      //     "1800",
-      //     "-segment_format",
-      //     "mpegts",
-      //     "-strftime",
-      //     "1",
-      //     `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.mp4`,
-      //   ],
-      //   { detached: true, stdio: "ignore" }
-      // );
-
-      // flv
       const process = spawn(
         "ffmpeg",
         [
@@ -173,13 +147,41 @@ class VideoStreamProcessor {
           "-segment_time",
           "1800",
           "-segment_format",
-          "flv",
+          "mp4",
           "-strftime",
           "1",
-          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.flv`,
+          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.mp4`,
         ],
         { detached: true, stdio: "ignore" }
       );
+
+      // flv
+      // const process = spawn(
+      //   "ffmpeg",
+      //   [
+      //     "-rtsp_transport",
+      //     "tcp",
+      //     "-i",
+      //     rtspSource.url,
+      //     "-reset_timestamps",
+      //     "1",
+      //     "-metadata",
+      //     `title=${rtspSource.name}_${moment().format("YYYY-MM-DD_HH:mm:ss")}`,
+      //     "-an",
+      //     "-f",
+      //     "hls",
+      //     "-hls_time",
+      //     "2",
+      //     "-hls_list_size",
+      //     "3",
+      //     "-hls_flags",
+      //     "delete_segments",
+      //     "-strftime",
+      //     "1",
+      //     `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.m3u8`,
+      //   ],
+      //   { detached: true, stdio: "ignore" }
+      // );
 
       process.channelName = rtspSource.name;
 
