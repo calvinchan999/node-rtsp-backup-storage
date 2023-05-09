@@ -7,6 +7,9 @@ const VideoStreamProcessor = require("./videoStreamProcessor.js");
 const axios = require("axios");
 const cron = require("node-cron");
 const { BlobServiceClient } = require("@azure/storage-blob");
+const fs = require("fs");
+
+const folderPath = "./video";
 
 const port = config.port;
 
@@ -24,30 +27,17 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 async function init() {
-  // const blobServiceClient = BlobServiceClient.fromConnectionString(
-  //   config.azureStorageAccount.connectionString
-  // );
-  // const containerClient = blobServiceClient.getContainerClient(
-  //   config.azureStorageAccount.container
-  // );
-  // this.videoStreamProcessor = new VideoStreamProcessor(containerClient);
-
-  // setInterval(async () => {
-  //   const rtspServerRes = await getRtspApiResponse();
-  //   if (rtspServerRes["data"]["items"].length <= 0) {
-  //     videoStreamProcessor.stop();
-  //   }
-  //   const sources = [];
-  //   for (const channelName in rtspServerRes.data.items) {
-  //     sources.push({
-  //       url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channelName}`,
-  //       name: channelName,
-  //     });
-  //   }
-  //   videoStreamProcessor.setVideoSources(sources);
-  //   console.log(videoStreamProcessor.getVideoSources());
-  //   videoStreamProcessor.start();
-  // }, 1000);
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdir(folderPath, (err) => {
+      if (err) {
+        console.error(err);
+      } else {
+        console.log("Folder created successfully.");
+      }
+    });
+  } else {
+    console.log("Folder already exists.");
+  }
 
   cron.schedule("*/5 * * * * *", async () => {
     const rtspServerRes = await getRtspApiResponse();
@@ -58,7 +48,8 @@ async function init() {
 
     const sources = [];
     for (const channelName in rtspServerRes.data.items) {
-      if (channelName.indexOf(".1") <= -1) { // filter channel 1
+      if (channelName.indexOf(".1") <= -1) {
+        // filter channel 1
         sources.push({
           url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channelName}`,
           name: channelName,
@@ -75,21 +66,6 @@ async function init() {
     // await videoStreamProcessor.stop();
     await videoStreamProcessor.uploadToBlobContainer("./video");
   });
-
-  // capure rtsp source and save to disk
-  // cron.schedule("*/1 * * * * *", async () => {
-  //   const rtspServerRes = await getRtspApiResponse();
-  //   const sources = [];
-  //   for (const channelName in rtspServerRes.data.items) {
-  //     sources.push({
-  //       url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channelName}`,
-  //       name: channelName,
-  //     });
-  //   }
-  //   videoStreamProcessor.setVideoSources(sources);
-  //   // console.log(videoStreamProcessor.getVideoSources());
-  //   videoStreamProcessor.start();
-  // });
 }
 
 function getRtspApiResponse() {
