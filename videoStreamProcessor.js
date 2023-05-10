@@ -26,10 +26,15 @@ class VideoStreamProcessor {
   }
 
   async getVideoDuration(filePath) {
-    const { stdout } = await exec(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ${filePath}`
-    );
-    return parseFloat(stdout);
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(filePath, (err, metadata) => {
+        if (err) {
+          resolve(0);
+        } else {
+          resolve(metadata.format.duration);
+        }
+      });
+    });
   }
 
   /**
@@ -159,71 +164,86 @@ class VideoStreamProcessor {
         const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
         const duplicateFiles = [];
-        for (let t = 0; t <= tsFiles.length; t++) {
-          for (let m = 0; m < mp4Files.length; m++) {
-            const lastUnderscoreIndex = mp4Files[m].lastIndexOf("_");
-            const secondLastUnderscoreIndex = mp4Files[m].lastIndexOf(
+
+        for (const tsFile of tsFiles) {
+          const tsResult = tsFile.substring(0, tsFile.lastIndexOf("."));
+          const matchingMp4Files = mp4Files.filter((mp4File) => {
+            const lastUnderscoreIndex = mp4File.lastIndexOf("_");
+            const secondLastUnderscoreIndex = mp4File.lastIndexOf(
               "_",
               lastUnderscoreIndex - 1
             );
-            const mp4Result = mp4Files[m].substring(
-              0,
-              secondLastUnderscoreIndex
-            );
-
-            const tsResult = String(tsFiles[t]).substring(
-              0,
-              String(tsFiles[t]).lastIndexOf(".")
-            );
-
-            console.log(tsResult);
-            console.log(mp4Result);
-            if (mp4Result === tsResult) {
-              duplicateFiles.push(tsFiles[t]);
-            }
+            const mp4Result = mp4File.substring(0, secondLastUnderscoreIndex);
+            return mp4Result === tsResult;
+          });
+          if (matchingMp4Files.length > 0) {
+            duplicateFiles.push(tsFile);
           }
         }
 
-        const isNotDuplicateTsFiles = _.difference(tsFiles, duplicateFiles);
-        const isDuplucateTsFiles = _.filter(tsFiles, duplicateFiles);
+        const nonDuplicateTsFiles = _.difference(tsFiles, duplicateFiles);
+        const duplicateTsFiles = _.intersection(tsFiles, duplicateFiles);
         console.log("*****************************");
-        console.log(isNotDuplicateTsFiles);
+        console.log(nonDuplicateTsFiles);
         console.log("*****************************");
-        console.log(isDuplucateTsFiles);
+        console.log(duplicateTsFiles);
         console.log("*****************************");
 
-        for (const file of isNotDuplicateTsFiles) {
-          const fileNameWithoutExtension = path.parse(file).name;
-          const inputName = `./video/${process.channelName}/${file}`;
-          const videoDuration = await getVideoDuration(inputName);
+        if (nonDuplicateTsFiles.length > 0) {
+          for (const file of nonDuplicateTsFiles) {
+            const fileNameWithoutExtension = path.parse(file).name;
+            const inputName = `./video/${process.channelName}/${file}`;
+            const videoDuration = await this.getVideoDuration(inputName);
 
-          const endDateTime = mount()
-            .add(videoDuration, "seconds")
-            .format("YYYY-MM-DD_HH-mm-ss");
-          const outputName = `./video/${
-            process.channelName
-          }/${fileNameWithoutExtension}_${moment().format(
-            "YYYY-MM-DD_HH-mm-ss"
-          )}.mp4`;
+            console.log(`--------------------inputName-----------------------`);
+            console.log(inputName);
+            console.log(`--------------------inputName-----------------------`);
+            // console.log(`--------------------videoDuration-----------------------`);
+            // console.log(videoDuration);
+            // console.log(`--------------------videoDuration-----------------------`);
+            const endDateTime = moment()
+              .add(videoDuration, "seconds")
+              .format("YYYY-MM-DD_HH-mm-ss");
 
-          await ffmpeg(inputName)
-            .outputOptions("-c:v", "libx264")
-            .outputOptions("-movflags", "+faststart")
-            .output(outputName)
-            .output()
-            .on("end", async () => {
-              console.log("Conversion complete");
-              // fs.unlinkSync(inputName);
-              await fs.promises.unlink(inputName);
-              console.log(`${inputName} - deleted`);
-            })
-            .on("error", async (err) => {
-              console.log(`Conversion error: ${err.message}`);
-              // fs.unlinkSync(inputName);
-              await fs.promises.unlink(inputName);
-              console.log(`${inputName} - deleted`);
-            })
-            .run();
+            // console.log(`-------------------------------------------`);
+            // console.log(endDateTime);
+            // console.log(`-------------------------------------------`);
+            const outputName = `./video/${
+              process.channelName
+            }/${fileNameWithoutExtension}_${endDateTime}.mp4`;
+
+            
+
+            console.log(`-------------------outputName------------------------`);
+            console.log(outputName);
+            console.log(`-------------------outputName------------------------`);
+
+
+            await ffmpeg(inputName)
+              .outputOptions("-c:v", "libx264")
+              .outputOptions("-movflags", "+faststart")
+              .output(outputName)
+              .on("end", async () => {
+                console.log("Conversion complete");
+                // fs.unlinkSync(inputName);
+                await fs.promises.unlink(inputName);
+                console.log(`${inputName} - deleted`);
+              })
+              .on("error", async (err) => {
+                console.log(`Conversion error: ${err.message}`);
+                // fs.unlinkSync(inputName);
+                await fs.promises.unlink(inputName);
+                console.log(`${inputName} - deleted`);
+              })
+              .run();
+          }
+        }
+
+        if (duplicateTsFiles.length > 0) {
+          for (const file of duplicateTsFiles) {
+            const inputName = `./video/${process.channelName}/${file}`;
+            await fs.promises.unlink(inputName);
+          }
         }
 
         await this.processingVideos.delete(process.channelName);
