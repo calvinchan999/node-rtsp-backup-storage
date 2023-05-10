@@ -5,6 +5,7 @@ const fs = require("fs");
 const moment = require("moment");
 const ffmpeg = require("fluent-ffmpeg");
 const path = require("path");
+const _ = require("lodash");
 
 // Define VideoStreamProcessor class
 class VideoStreamProcessor {
@@ -22,6 +23,13 @@ class VideoStreamProcessor {
     this.threadQueue = [];
     this.videoSources = [];
     this.processingVideos = new Set();
+  }
+
+  async getVideoDuration(filePath) {
+    const { stdout } = await exec(
+      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ${filePath}`
+    );
+    return parseFloat(stdout);
   }
 
   /**
@@ -120,7 +128,7 @@ class VideoStreamProcessor {
           "-f",
           "segment",
           "-segment_time",
-          "1800",
+          "900",
           "-segment_format",
           "mpegts",
           "-strftime",
@@ -147,12 +155,51 @@ class VideoStreamProcessor {
           "./video/" + process.channelName
         );
 
-        const tsFiles = files.filter((file) => file.endsWith(".ts"));
+        let tsFiles = files.filter((file) => file.endsWith(".ts"));
+        const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
-        for (const file of tsFiles) {
+        const duplicateFiles = [];
+        for (let t = 0; t <= tsFiles.length; t++) {
+          for (let m = 0; m < mp4Files.length; m++) {
+            const lastUnderscoreIndex = mp4Files[m].lastIndexOf("_");
+            const secondLastUnderscoreIndex = mp4Files[m].lastIndexOf(
+              "_",
+              lastUnderscoreIndex - 1
+            );
+            const mp4Result = mp4Files[m].substring(
+              0,
+              secondLastUnderscoreIndex
+            );
+
+            const tsResult = String(tsFiles[t]).substring(
+              0,
+              String(tsFiles[t]).lastIndexOf(".")
+            );
+
+            console.log(tsResult);
+            console.log(mp4Result);
+            if (mp4Result === tsResult) {
+              duplicateFiles.push(tsFiles[t]);
+            }
+          }
+        }
+
+        const isNotDuplicateTsFiles = _.difference(tsFiles, duplicateFiles);
+        const isDuplucateTsFiles = _.filter(tsFiles, duplicateFiles);
+        console.log("*****************************");
+        console.log(isNotDuplicateTsFiles);
+        console.log("*****************************");
+        console.log(isDuplucateTsFiles);
+        console.log("*****************************");
+
+        for (const file of isNotDuplicateTsFiles) {
           const fileNameWithoutExtension = path.parse(file).name;
-
           const inputName = `./video/${process.channelName}/${file}`;
+          const videoDuration = await getVideoDuration(inputName);
+
+          const endDateTime = mount()
+            .add(videoDuration, "seconds")
+            .format("YYYY-MM-DD_HH-mm-ss");
           const outputName = `./video/${
             process.channelName
           }/${fileNameWithoutExtension}_${moment().format(
@@ -163,13 +210,18 @@ class VideoStreamProcessor {
             .outputOptions("-c:v", "libx264")
             .outputOptions("-movflags", "+faststart")
             .output(outputName)
-            .on("end", () => {
+            .output()
+            .on("end", async () => {
               console.log("Conversion complete");
-              fs.unlinkSync(inputName);
+              // fs.unlinkSync(inputName);
+              await fs.promises.unlink(inputName);
+              console.log(`${inputName} - deleted`);
             })
-            .on("error", (err) => {
+            .on("error", async (err) => {
               console.log(`Conversion error: ${err.message}`);
-              fs.unlinkSync(inputName);
+              // fs.unlinkSync(inputName);
+              await fs.promises.unlink(inputName);
+              console.log(`${inputName} - deleted`);
             })
             .run();
         }
