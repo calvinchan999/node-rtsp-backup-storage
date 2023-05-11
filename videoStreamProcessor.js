@@ -16,13 +16,15 @@ class VideoStreamProcessor {
   blobContainerClient;
   videoFilename;
   videoFolderPath;
+  timezone;
 
   // Constructor
-  constructor(blobContainerClient) {
+  constructor({ blobContainerClient, timezone }) {
     this.blobContainerClient = blobContainerClient;
     this.threadQueue = [];
     this.videoSources = [];
     this.processingVideos = new Set();
+    this.timezone = timezone;
   }
 
   async getVideoDuration(filePath) {
@@ -31,7 +33,7 @@ class VideoStreamProcessor {
         if (err) {
           resolve(0);
         } else {
-          resolve(metadata.format.duration);
+          resolve(Math.floor(metadata.format.duration));
         }
       });
     });
@@ -164,16 +166,18 @@ class VideoStreamProcessor {
         const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
         const duplicateFiles = [];
-
+        
         for (const tsFile of tsFiles) {
           const tsResult = tsFile.substring(0, tsFile.lastIndexOf("."));
           const matchingMp4Files = mp4Files.filter((mp4File) => {
-            const lastUnderscoreIndex = mp4File.lastIndexOf("_");
-            const secondLastUnderscoreIndex = mp4File.lastIndexOf(
-              "_",
-              lastUnderscoreIndex - 1
-            );
-            const mp4Result = mp4File.substring(0, secondLastUnderscoreIndex);
+            // const lastUnderscoreIndex = mp4File.lastIndexOf("_");
+            // const secondLastUnderscoreIndex = mp4File.lastIndexOf(
+            //   "_",
+            //   lastUnderscoreIndex - 1
+            // );
+            // const mp4Result = mp4File.substring(0, secondLastUnderscoreIndex);
+            const splitFileName = mp4File.split('_');
+            const mp4Result = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}`; 
             return mp4Result === tsResult;
           });
           if (matchingMp4Files.length > 0) {
@@ -183,11 +187,6 @@ class VideoStreamProcessor {
 
         const nonDuplicateTsFiles = _.difference(tsFiles, duplicateFiles);
         const duplicateTsFiles = _.intersection(tsFiles, duplicateFiles);
-        console.log("*****************************");
-        console.log(nonDuplicateTsFiles);
-        console.log("*****************************");
-        console.log(duplicateTsFiles);
-        console.log("*****************************");
 
         if (nonDuplicateTsFiles.length > 0) {
           for (const file of nonDuplicateTsFiles) {
@@ -195,30 +194,21 @@ class VideoStreamProcessor {
             const inputName = `./video/${process.channelName}/${file}`;
             const videoDuration = await this.getVideoDuration(inputName);
 
-            console.log(`--------------------inputName-----------------------`);
-            console.log(inputName);
-            console.log(`--------------------inputName-----------------------`);
-            // console.log(`--------------------videoDuration-----------------------`);
-            // console.log(videoDuration);
-            // console.log(`--------------------videoDuration-----------------------`);
-            const endDateTime = moment()
+            const inputDatetimeFilter = fileNameWithoutExtension.substring(
+              fileNameWithoutExtension.indexOf("_") + 1
+            );
+
+            const endDateTime = moment(
+              moment(inputDatetimeFilter, "YYYY-MM-DD_HH-mm-ss").format(
+                "YYYY-MM-DD HH:mm:ss"
+              )
+            )
               .add(videoDuration, "seconds")
               .format("YYYY-MM-DD_HH-mm-ss");
 
-            // console.log(`-------------------------------------------`);
-            // console.log(endDateTime);
-            // console.log(`-------------------------------------------`);
-            const outputName = `./video/${
-              process.channelName
-            }/${fileNameWithoutExtension}_${endDateTime}.mp4`;
+            const outputName = `./video/${process.channelName}/${fileNameWithoutExtension}_${endDateTime}_${this.timezone}.mp4`;
 
-            
-
-            console.log(`-------------------outputName------------------------`);
-            console.log(outputName);
-            console.log(`-------------------outputName------------------------`);
-
-
+  
             await ffmpeg(inputName)
               .outputOptions("-c:v", "libx264")
               .outputOptions("-movflags", "+faststart")
@@ -242,6 +232,7 @@ class VideoStreamProcessor {
         if (duplicateTsFiles.length > 0) {
           for (const file of duplicateTsFiles) {
             const inputName = `./video/${process.channelName}/${file}`;
+            console.log(`duplicate file: ${inputName} - deleted`);
             await fs.promises.unlink(inputName);
           }
         }

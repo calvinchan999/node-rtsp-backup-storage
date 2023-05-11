@@ -8,6 +8,7 @@ const axios = require("axios");
 const cron = require("node-cron");
 const { BlobServiceClient } = require("@azure/storage-blob");
 const fs = require("fs");
+const moment = require("moment");
 
 const folderPath = "./video";
 
@@ -21,7 +22,10 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(
 const containerClient = blobServiceClient.getContainerClient(
   config.azureStorageAccount.container
 );
-const videoStreamProcessor = new VideoStreamProcessor(containerClient);
+const videoStreamProcessor = new VideoStreamProcessor({
+  containerClient,
+  timezone: moment().tz(moment.tz.guess()).format('z'),
+});
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
