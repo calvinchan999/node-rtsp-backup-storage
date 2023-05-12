@@ -19,7 +19,7 @@ class VideoStreamProcessor {
   timezone;
 
   // Constructor
-  constructor({ blobContainerClient, timezone }) {
+  constructor(blobContainerClient, timezone) {
     this.blobContainerClient = blobContainerClient;
     this.threadQueue = [];
     this.videoSources = [];

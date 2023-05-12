@@ -22,10 +22,10 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(
 const containerClient = blobServiceClient.getContainerClient(
   config.azureStorageAccount.container
 );
-const videoStreamProcessor = new VideoStreamProcessor({
+const videoStreamProcessor = new VideoStreamProcessor(
   containerClient,
-  timezone: moment().tz(moment.tz.guess()).format('z'),
-});
+  moment().tz(moment.tz.guess()).format("z")
+);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
