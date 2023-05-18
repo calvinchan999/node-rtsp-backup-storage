@@ -59,45 +59,50 @@ class VideoStreamProcessor {
 
       for (const file of mp4Files) {
         if (file) {
-          const blobName = `${directory}/${file}`;
-          const blobClient = await this.blobContainerClient.getBlobClient(
-            blobName
+          const fileNameWithoutExtension = path.parse(file).name;
+          const splitFileName = fileNameWithoutExtension.split("_");
+          const tsFileName = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}.ts`;
+          const readTsFile = await fs.existsSync(
+            videoFolderPath + "/" + directory + "/" + tsFileName
           );
-          const blockBlobClient = await blobClient.getBlockBlobClient();
-          const readStream = await fs.createReadStream(
-            videoFolderPath + "/" + directory + "/" + file
-          );
-          const uploadOptions = {
-            bufferSize: 4 * 1024 * 1024,
-            maxBuffers: 20,
-          };
-
-          const uploadPromise = blockBlobClient.uploadStream(
-            readStream,
-            uploadOptions.bufferSize,
-            uploadOptions.maxBuffers,
-            {
-              blobHTTPHeaders: {
-                blobContentType: "video/mp4", // video/MP2T
-              },
-              metadata: {
-                source: file,
-              },
-            }
-          );
-
-          readStream.on("end", async () => {
-            console.log(`uploaded ${file} to azure blob container`);
-            try {
-              await fs.unlinkSync(
-                videoFolderPath + "/" + directory + "/" + file
-              );
-            } catch (e) {
-              console.log(`remove ${file} failed!`);
-            }
-          });
-
-          await uploadPromise;
+          if (!readTsFile) {
+            const blobName = `${directory}/${file}`;
+            const blobClient = await this.blobContainerClient.getBlobClient(
+              blobName
+            );
+            const blockBlobClient = await blobClient.getBlockBlobClient();
+            const readStream = await fs.createReadStream(
+              videoFolderPath + "/" + directory + "/" + file
+            );
+            const uploadOptions = {
+              bufferSize: 4 * 1024 * 1024,
+              maxBuffers: 20,
+            };
+            const uploadPromise = blockBlobClient.uploadStream(
+              readStream,
+              uploadOptions.bufferSize,
+              uploadOptions.maxBuffers,
+              {
+                blobHTTPHeaders: {
+                  blobContentType: "video/mp4", // video/MP2T
+                },
+                metadata: {
+                  source: file,
+                },
+              }
+            );
+            readStream.on("end", async () => {
+              console.log(`uploaded ${file} to azure blob container`);
+              try {
+                await fs.unlinkSync(
+                  videoFolderPath + "/" + directory + "/" + file
+                );
+              } catch (e) {
+                console.log(`remove ${file} failed!`);
+              }
+            });
+            await uploadPromise;
+          }
         }
       }
     }
@@ -166,7 +171,7 @@ class VideoStreamProcessor {
         const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
         const duplicateFiles = [];
-        
+
         for (const tsFile of tsFiles) {
           const tsResult = tsFile.substring(0, tsFile.lastIndexOf("."));
           const matchingMp4Files = mp4Files.filter((mp4File) => {
@@ -176,8 +181,8 @@ class VideoStreamProcessor {
             //   lastUnderscoreIndex - 1
             // );
             // const mp4Result = mp4File.substring(0, secondLastUnderscoreIndex);
-            const splitFileName = mp4File.split('_');
-            const mp4Result = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}`; 
+            const splitFileName = mp4File.split("_");
+            const mp4Result = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}`;
             return mp4Result === tsResult;
           });
           if (matchingMp4Files.length > 0) {
@@ -208,7 +213,6 @@ class VideoStreamProcessor {
 
             const outputName = `./video/${process.channelName}/${fileNameWithoutExtension}_${endDateTime}_${this.timezone}.mp4`;
 
-  
             await ffmpeg(inputName)
               .outputOptions("-c:v", "libx264")
               .outputOptions("-movflags", "+faststart")
