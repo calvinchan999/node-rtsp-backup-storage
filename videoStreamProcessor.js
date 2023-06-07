@@ -157,6 +157,14 @@ class VideoStreamProcessor {
       // Add video to processing list
       this.processingVideos.add(rtspSource.name);
 
+      const now = moment.utc();
+      const timeToMidnight = moment.utc().endOf("day").diff(now);
+      
+      // Set up a timer to exit the current process at midnight UTC
+      setTimeout(() => {
+        process.exit();
+      }, timeToMidnight);
+
       // Add listener for process exit event
       process.on("exit", async (code, signal) => {
         console.log(
