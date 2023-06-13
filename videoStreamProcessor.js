@@ -379,7 +379,7 @@ class VideoStreamProcessor {
         } else {
           // Non-Windows-specific code goes here
           // process.kill(thread.pid, "SIGKILL");
-          if (thread.pid && process.kill(pid, 0)) {
+          if (thread.pid && process.kill(thread.pid, 0)) {
             process.kill(thread.pid, "SIGTERM");
           } else {
             console.log(`Process ${thread.pid} does not exist.`);
