@@ -51,15 +51,16 @@ async function init() {
     }
 
     const sources = [];
-    for (const channelName in rtspServerRes.data.items) {
-      if (channelName.indexOf(".1") <= -1) {
+    for (const channel of rtspServerRes.data.items) {
+      if (channel.name.indexOf(".1") <= -1) {
         // filter channel 1
         sources.push({
-          url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channelName}`,
-          name: channelName,
+          url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channel.name}`,
+          name: channel.name,
         });
       }
     }
+
     videoStreamProcessor.setVideoSources(sources);
     console.log(videoStreamProcessor.getVideoSources());
     videoStreamProcessor.start();
