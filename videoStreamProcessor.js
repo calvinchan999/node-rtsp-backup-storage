@@ -159,7 +159,7 @@ class VideoStreamProcessor {
 
       const now = moment.utc();
       const timeToMidnight = moment.utc().endOf("day").diff(now);
-      
+
       // Set up a timer to exit the current process at midnight UTC
       setTimeout(() => {
         process.exit();
@@ -378,7 +378,12 @@ class VideoStreamProcessor {
           terminateProcess(thread.pid);
         } else {
           // Non-Windows-specific code goes here
-          process.kill(thread.pid, "SIGKILL");
+          // process.kill(thread.pid, "SIGKILL");
+          if (thread.pid && process.kill(pid, 0)) {
+            process.kill(thread.pid, "SIGTERM");
+          } else {
+            console.log(`Process ${thread.pid} does not exist.`);
+          }
         }
       }
     }
