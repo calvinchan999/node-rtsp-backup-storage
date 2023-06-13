@@ -75,7 +75,7 @@ async function init() {
 function getRtspApiResponse() {
   return new Promise((resolve, reject) => {
     axios
-      .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v1/paths/list`)
+      .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v2/paths/list`)
       .then((res) => resolve(res))
       .catch((err) => reject(err));
   });
