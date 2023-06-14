@@ -141,7 +141,7 @@ class VideoStreamProcessor {
           "-f",
           "segment",
           "-segment_time",
-          "900",
+          "300",
           "-segment_format",
           "mpegts",
           "-strftime",
