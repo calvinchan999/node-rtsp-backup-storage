@@ -91,13 +91,11 @@ const server = app.listen(process.env.PORT || port, async () => {
   );
 });
 
-// Handle close event
 server.on("close", () => {
   // Clean up resources, such as closing database connections
-  console.log("Express server closed");
+  console.log("Server closed");
 });
 
-// Handle exit event
 process.on("exit", (code) => {
   // Clean up resources
   console.log(`Process exited with code ${code}`);
@@ -105,9 +103,14 @@ process.on("exit", (code) => {
 
 process.on("SIGINT", () => {
   console.log("Received SIGINT signal. Closing server...");
-  server.close(async () => {
+  server.close(() => {
     console.log("Server closed. Exiting process...");
-    await videoStreamProcessor.stop();
+    videoStreamProcessor.stop();
     process.exit();
   });
 });
+
+app.get("/", (req, res) => {
+  res.send("server is running!");
+});
+
