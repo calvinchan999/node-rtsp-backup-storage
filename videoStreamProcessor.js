@@ -45,8 +45,6 @@ class VideoStreamProcessor {
    **/
 
   async uploadToBlobContainer(videoFolderPath) {
-    console.log("uploadtoblobcontainer");
-
     const directorys = await fs.promises.readdir(videoFolderPath);
 
     for (const directory of directorys) {
@@ -249,13 +247,13 @@ class VideoStreamProcessor {
           }
         }
 
-        await this.processingVideos.delete(process.channelName);
+        this.processingVideos.delete(process.channelName);
 
         const videoSources = this.getVideoSources();
         const filteredSources = videoSources.filter(
           (source) => source.name !== process.channelName
         );
-        await this.setVideoSources(filteredSources);
+        this.setVideoSources(filteredSources);
         await this.terminateProcessByName(process.channelName);
       });
 
@@ -303,10 +301,11 @@ class VideoStreamProcessor {
   // }
 
   async terminateProcessByName(channelName) {
-    const thread = this.threadQueue.find(
+    const threadIndex = this.threadQueue.findIndex(
       (data) => data.channelName === channelName
     );
-    if (thread) {
+    if (threadIndex !== -1) {
+      const thread = this.threadQueue[threadIndex];
       console.log(`kill ${thread.pid}`);
       console.log(`kill ${thread.channelName}`);
       thread.kill();
@@ -321,16 +320,20 @@ class VideoStreamProcessor {
                 const isRunning =
                   stdout.toLowerCase().indexOf(`pid: ${pid}`) !== -1;
                 if (isRunning) {
-                  exec(
-                    `taskkill /pid ${pid} /T /F`,
-                    (error, stdout, stderr) => {
-                      if (error) {
-                        reject(error);
-                      } else {
-                        resolve();
+                  try {
+                    exec(
+                      `taskkill /pid ${pid} /T /F`,
+                      (error, stdout, stderr) => {
+                        if (error) {
+                          reject(error);
+                        } else {
+                          resolve();
+                        }
                       }
-                    }
-                  );
+                    );
+                  } catch (e) {
+                    reject(error);
+                  }
                 } else {
                   resolve();
                 }
@@ -346,6 +349,8 @@ class VideoStreamProcessor {
         } catch (error) {
           if (error.code === "ESRCH") {
             console.log(`Process with PID ${thread.pid} does not exist.`);
+            // Remove the thread from the threadQueue array
+            this.threadQueue.splice(threadIndex, 1);
             return;
           }
         }
@@ -353,6 +358,13 @@ class VideoStreamProcessor {
         process.kill(thread.pid, "SIGKILL");
         console.log(`Process with PID ${thread.pid} has been killed.`);
       }
+
+      // Remove the thread from the threadQueue array
+      this.threadQueue.splice(threadIndex, 1);
+    } else {
+      console.log(
+        `Thread with channel name ${channelName} does not exist in the threadQueue.`
+      );
     }
   }
 
@@ -375,12 +387,21 @@ class VideoStreamProcessor {
               });
             });
           };
-          terminateProcess(thread.pid);
+          try {
+            await terminateProcess(thread.pid);
+          } catch (e) {
+            console.log(e);
+          }
         } else {
           // Non-Windows-specific code goes here
           // process.kill(thread.pid, "SIGKILL");
-          if (thread.pid && process.kill(thread.pid, 0)) {
-            process.kill(thread.pid, "SIGTERM");
+          if (thread.pid) {
+            try {
+              process.kill(thread.pid, "SIGTERM");
+            } catch (e) {
+              console.log(`process ${thread.pid} not found`);
+              console.log(e);
+            }
           } else {
             console.log(`Process ${thread.pid} does not exist.`);
           }
@@ -389,9 +410,9 @@ class VideoStreamProcessor {
     }
 
     // Clear processing videos
-    await this.processingVideos.clear();
-    await this.setThreadQueue([]);
-    await this.setVideoSources([]);
+    this.processingVideos.clear();
+    this.setThreadQueue([]);
+    this.setVideoSources([]);
   }
 
   setThreadQueue(queue) {

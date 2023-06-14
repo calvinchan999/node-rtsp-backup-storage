@@ -45,10 +45,10 @@ async function init() {
 
   cron.schedule("*/5 * * * * *", async () => {
     const rtspServerRes = await getRtspApiResponse();
-    if (rtspServerRes["data"]["items"].length <= 0) {
-      console.log("data <= l");
-      videoStreamProcessor.stop();
-    }
+    // if (rtspServerRes["data"]["items"].length <= 0) {
+    //   console.log("rtsp server paths/list is empty");
+    //   videoStreamProcessor.stop();
+    // }
 
     const sources = [];
     for (const channel of rtspServerRes.data.items) {
@@ -62,8 +62,10 @@ async function init() {
     }
 
     videoStreamProcessor.setVideoSources(sources);
-    console.log(videoStreamProcessor.getVideoSources());
-    videoStreamProcessor.start();
+    if (videoStreamProcessor.getVideoSources().length > 0) {
+      console.log(videoStreamProcessor.getVideoSources());
+      videoStreamProcessor.start();
+    }
   });
 
   cron.schedule("0 */1 * * *", async () => {
