@@ -1,5 +1,6 @@
 "use strict";
 require("dotenv/config");
+const logger = require("./winston/logger");
 const express = require("express");
 const bodyParser = require("body-parser");
 const config = require("./config/config");
@@ -10,7 +11,7 @@ const { BlobServiceClient } = require("@azure/storage-blob");
 const fs = require("fs");
 const moment = require("moment");
 
-const folderPath = "./video";
+const videosPath = "./video";
 
 const port = config.port;
 
@@ -31,22 +32,20 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 async function init() {
-  if (!fs.existsSync(folderPath)) {
-    fs.mkdir(folderPath, (err) => {
+  if (!fs.existsSync(videosPath)) {
+    fs.mkdir(videosPath, (err) => {
       if (err) {
-        console.error(err);
+        logger.error(err);
       } else {
-        console.log("Folder created successfully.");
+        logger.info("video folder created successfully.");
       }
     });
-  } else {
-    console.log("Folder already exists.");
   }
 
   cron.schedule("*/5 * * * * *", async () => {
     const rtspServerRes = await getRtspApiResponse();
     // if (rtspServerRes["data"]["items"].length <= 0) {
-    //   console.log("rtsp server paths/list is empty");
+    //   logger.info("rtsp server paths/list is empty");
     //   videoStreamProcessor.stop();
     // }
 
@@ -63,13 +62,14 @@ async function init() {
 
     videoStreamProcessor.setVideoSources(sources);
     if (videoStreamProcessor.getVideoSources().length > 0) {
-      console.log(videoStreamProcessor.getVideoSources());
+      logger.info(videoStreamProcessor.getVideoSources());
+      // console.log(videoStreamProcessor.getVideoSources());
       videoStreamProcessor.start();
     }
   });
 
   cron.schedule("0 */1 * * *", async () => {
-    console.log(`run uploadToBlobContainer ${new Date()}`);
+    logger.info(`run uploadToBlobContainer ${new Date()}`);
     // await videoStreamProcessor.stop();
     await videoStreamProcessor.uploadToBlobContainer("./video");
   });
@@ -86,25 +86,23 @@ function getRtspApiResponse() {
 
 const server = app.listen(process.env.PORT || port, async () => {
   init();
-  console.log(
-    `server is running on http://localhost:${process.env.PORT || port}`
-  );
+  logger.info(`server is running on ${process.env.PORT || port}`);
 });
 
 server.on("close", () => {
   // Clean up resources, such as closing database connections
-  console.log("Server closed");
+  logger.info(`Server closed`);
 });
 
 process.on("exit", (code) => {
   // Clean up resources
-  console.log(`Process exited with code ${code}`);
+  logger.info(`Process exited with code ${code}`);
 });
 
 process.on("SIGINT", () => {
-  console.log("Received SIGINT signal. Closing server...");
+  logger.info("Received SIGINT signal. Closing server...");
   server.close(() => {
-    console.log("Server closed. Exiting process...");
+    logger.info("Server closed. Exiting process...");
     videoStreamProcessor.stop();
     process.exit();
   });
@@ -113,4 +111,3 @@ process.on("SIGINT", () => {
 app.get("/", (req, res) => {
   res.send("server is running!");
 });
-

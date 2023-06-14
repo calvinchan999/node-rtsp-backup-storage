@@ -1,4 +1,6 @@
 "use strict";
+const logger = require("./winston/logger");
+
 // Import required dependencies
 const { spawn, exec } = require("child_process");
 const fs = require("fs");
@@ -90,13 +92,13 @@ class VideoStreamProcessor {
               }
             );
             readStream.on("end", async () => {
-              console.log(`uploaded ${file} to azure blob container`);
+              logger.info(`uploaded ${file} to azure blob container`);
               try {
                 await fs.unlinkSync(
                   videoFolderPath + "/" + directory + "/" + file
                 );
               } catch (e) {
-                console.log(`remove ${file} failed!`);
+                logger.error(`remove ${file} failed!`);
               }
             });
             await uploadPromise;
@@ -110,13 +112,14 @@ class VideoStreamProcessor {
   async start() {
     for (const rtspSource of this.videoSources) {
       if (this.processingVideos.has(rtspSource.name)) {
-        console.log(`${rtspSource.name} is already being processed`);
+        logger.info(`${rtspSource.name} is already being processed`);
+        // console.log(`${rtspSource.name} is already being processed`);
         continue;
       }
 
       // Create video folder
       const videoFolderPath = `./video/${rtspSource.name}`;
-      console.log(videoFolderPath);
+      logger.info(videoFolderPath);
       if (!fs.existsSync(videoFolderPath)) {
         fs.mkdirSync(videoFolderPath);
       }
@@ -165,7 +168,7 @@ class VideoStreamProcessor {
 
       // Add listener for process exit event
       process.on("exit", async (code, signal) => {
-        console.log(
+        logger.info(
           `Process ${process.channelName} has exited with code ${code} and signal ${signal}`
         );
 
@@ -224,16 +227,16 @@ class VideoStreamProcessor {
               .outputOptions("-movflags", "+faststart")
               .output(outputName)
               .on("end", async () => {
-                console.log("Conversion complete");
+                logger.info("Conversion complete");
                 // fs.unlinkSync(inputName);
                 await fs.promises.unlink(inputName);
-                console.log(`${inputName} - deleted`);
+                logger.info(`${inputName} - deleted`);
               })
               .on("error", async (err) => {
-                console.log(`Conversion error: ${err.message}`);
+                logger.info(`Conversion error: ${err.message}`);
                 // fs.unlinkSync(inputName);
                 await fs.promises.unlink(inputName);
-                console.log(`${inputName} - deleted`);
+                logger.info(`${inputName} - deleted`);
               })
               .run();
           }
@@ -242,7 +245,7 @@ class VideoStreamProcessor {
         if (duplicateTsFiles.length > 0) {
           for (const file of duplicateTsFiles) {
             const inputName = `./video/${process.channelName}/${file}`;
-            console.log(`duplicate file: ${inputName} - deleted`);
+            logger.info(`duplicate file: ${inputName} - deleted`);
             await fs.promises.unlink(inputName);
           }
         }
@@ -289,7 +292,7 @@ class VideoStreamProcessor {
   //         process.kill(thread.pid, "SIGKILL");
   //       }
   //     } catch (e) {
-  //       console.log("The process not found or deleted");
+  //       logger.error("The process not found or deleted");
   //     }
   //     await this.processingVideos.delete(channel);
   //     const videoSources = await this.getVideoSources();
@@ -306,8 +309,8 @@ class VideoStreamProcessor {
     );
     if (threadIndex !== -1) {
       const thread = this.threadQueue[threadIndex];
-      console.log(`kill ${thread.pid}`);
-      console.log(`kill ${thread.channelName}`);
+      logger.warn(`kill ${thread.pid}`);
+      logger.warn(`kill ${thread.channelName}`);
       thread.kill();
       if (process.platform === "win32") {
         // Windows-specific code goes here
@@ -348,7 +351,7 @@ class VideoStreamProcessor {
           process.kill(thread.pid, 0);
         } catch (error) {
           if (error.code === "ESRCH") {
-            console.log(`Process with PID ${thread.pid} does not exist.`);
+            logger.warn(`Process with PID ${thread.pid} does not exist.`);
             // Remove the thread from the threadQueue array
             this.threadQueue.splice(threadIndex, 1);
             return;
@@ -356,13 +359,13 @@ class VideoStreamProcessor {
         }
 
         process.kill(thread.pid, "SIGKILL");
-        console.log(`Process with PID ${thread.pid} has been killed.`);
+        logger.warn(`Process with PID ${thread.pid} has been killed.`);
       }
 
       // Remove the thread from the threadQueue array
       this.threadQueue.splice(threadIndex, 1);
     } else {
-      console.log(
+      logger.warn(
         `Thread with channel name ${channelName} does not exist in the threadQueue.`
       );
     }
@@ -371,8 +374,8 @@ class VideoStreamProcessor {
   async stop() {
     for (const thread of this.threadQueue) {
       if (thread) {
-        console.log(`kill ${thread.pid}`);
-        console.log(`kill ${thread.channelName}`);
+        logger.warn(`kill ${thread.pid}`);
+        logger.warn(`kill ${thread.channelName}`);
         thread.kill();
         if (process.platform === "win32") {
           // Windows-specific code goes here
@@ -390,7 +393,7 @@ class VideoStreamProcessor {
           try {
             await terminateProcess(thread.pid);
           } catch (e) {
-            console.log(e);
+            logger.error(e);
           }
         } else {
           // Non-Windows-specific code goes here
@@ -399,11 +402,11 @@ class VideoStreamProcessor {
             try {
               process.kill(thread.pid, "SIGTERM");
             } catch (e) {
-              console.log(`process ${thread.pid} not found`);
-              console.log(e);
+              logger.warn(`process ${thread.pid} not found`);
+              logger.error(e);
             }
           } else {
-            console.log(`Process ${thread.pid} does not exist.`);
+            logger.warn(`Process ${thread.pid} does not exist.`);
           }
         }
       }
