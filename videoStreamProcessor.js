@@ -166,6 +166,8 @@ class VideoStreamProcessor {
         if (process && process !== undefined) {
           logger.warn('Terminate child process - timeToMidnight');
           process.exit();
+        }else {
+          logger.warn('Ensure the Child process is exist');
         }
       }, timeToMidnight);
 
