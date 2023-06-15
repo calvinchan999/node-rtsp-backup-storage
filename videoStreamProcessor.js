@@ -163,7 +163,10 @@ class VideoStreamProcessor {
 
       // Set up a timer to exit the current process at midnight UTC
       setTimeout(() => {
-        process.exit();
+        if (process && process !== undefined) {
+          logger.warn('Terminate child process - timeToMidnight');
+          process.exit();
+        }
       }, timeToMidnight);
 
       // Add listener for process exit event
