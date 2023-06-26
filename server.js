@@ -43,28 +43,46 @@ async function init() {
   }
 
   cron.schedule("*/5 * * * * *", async () => {
-    const rtspServerRes = await getRtspApiResponse();
-    // if (rtspServerRes["data"]["items"].length <= 0) {
-    //   logger.info("rtsp server paths/list is empty");
-    //   videoStreamProcessor.stop();
-    // }
+    const channels = await getRtspApiResponse();
 
-    const sources = [];
-    for (const channel of rtspServerRes.data.items) {
-      if (channel.name.indexOf(".1") <= -1) {
-        // filter channel 1
+    const mapper = (data) => {
+      return new Promise((resolve, reject) => {
+        const result = {};
+
+        for (const key in data) {
+          if (key.indexOf(".") !== -1) {
+            const [prefix, suffix] = key.split(".");
+            result[key] = data[key];
+
+            if (
+              result.hasOwnProperty(prefix + ".0") &&
+              result.hasOwnProperty(prefix + ".1")
+            ) {
+              delete result[prefix + ".1"];
+            }
+          }
+        }
+        resolve(result);
+      });
+    };
+
+    const channelsData = await mapper(channels.data.items);
+
+    if (channelsData) {
+      const sources = [];
+
+      for (const channel in channelsData) {
         sources.push({
-          url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channel.name}`,
-          name: channel.name,
+          url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channel}`,
+          name: channel,
         });
       }
-    }
 
-    videoStreamProcessor.setVideoSources(sources);
-    if (videoStreamProcessor.getVideoSources().length > 0) {
-      logger.info(videoStreamProcessor.getVideoSources());
-      // console.log(videoStreamProcessor.getVideoSources());
-      videoStreamProcessor.start();
+      videoStreamProcessor.setVideoSources(sources);
+      if (videoStreamProcessor.getVideoSources().length > 0) {
+        logger.info(videoStreamProcessor.getVideoSources());
+        videoStreamProcessor.start();
+      }
     }
   });
 
@@ -78,7 +96,7 @@ async function init() {
 function getRtspApiResponse() {
   return new Promise((resolve, reject) => {
     axios
-      .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v2/paths/list`)
+      .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v1/paths/list`)
       .then((res) => resolve(res))
       .catch((err) => reject(err));
   });
