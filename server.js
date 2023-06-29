@@ -87,9 +87,15 @@ async function init() {
   });
 
   cron.schedule("0 */1 * * *", async () => {
-    logger.info(`run uploadToBlobContainer ${new Date()}`);
+    logger.warn(`Upload To BlobContainer ${new Date()}`);
     // await videoStreamProcessor.stop();
     await videoStreamProcessor.uploadToBlobContainer("./video");
+  });
+
+  cron.schedule("* */6 * * *", async () => {
+    // * */6 * * *
+    logger.warn(`Terminate FFmpeg Process ${new Date()}`);
+    videoStreamProcessor.kill();
   });
 }
 
@@ -104,7 +110,7 @@ function getRtspApiResponse() {
 
 const server = app.listen(process.env.PORT || port, async () => {
   init();
-  logger.info(`server is running on ${process.env.PORT || port}`);
+  logger.info(`Server is running on ${process.env.PORT || port}`);
 });
 
 server.on("close", () => {
