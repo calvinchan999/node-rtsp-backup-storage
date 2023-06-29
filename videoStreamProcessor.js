@@ -213,7 +213,7 @@ class VideoStreamProcessor {
           "-f",
           "segment",
           "-segment_time",
-          "1800",
+          "900",
           "-segment_format",
           "mpegts",
           "-strftime",
@@ -301,12 +301,6 @@ class VideoStreamProcessor {
           for (const tsFile of tsFiles) {
             const tsResult = tsFile.substring(0, tsFile.lastIndexOf("."));
             const matchingMp4Files = mp4Files.filter((mp4File) => {
-              // const lastUnderscoreIndex = mp4File.lastIndexOf("_");
-              // const secondLastUnderscoreIndex = mp4File.lastIndexOf(
-              //   "_",
-              //   lastUnderscoreIndex - 1
-              // );
-              // const mp4Result = mp4File.substring(0, secondLastUnderscoreIndex);
               const splitFileName = mp4File.split("_");
               const mp4Result = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}`;
               return mp4Result === tsResult;
@@ -359,14 +353,13 @@ class VideoStreamProcessor {
             }
           }
 
-          if (duplicateTsFiles.length > 0) {
-            for (const file of duplicateTsFiles) {
-              const inputName = `${convertingFolderPath}/${file}`;
-              await this.deleteFile(inputName);
-              logger.info(`duplicate file: ${inputName} - deleted`);
-              // await fs.promises.unlink(inputName);
-            }
-          }
+          // if (duplicateTsFiles.length > 0) {
+          //   for (const file of duplicateTsFiles) {
+          //     const inputName = `${convertingFolderPath}/${file}`;
+          //     await this.deleteFile(inputName);
+          //     logger.info(`duplicate file: ${inputName} - deleted`);
+          //   }
+          // }
 
           this.processingVideos.delete(process.channelName);
 
