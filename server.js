@@ -93,7 +93,7 @@ async function init() {
     await videoStreamProcessor.uploadToBlobContainer("./video");
   });
 
-  cron.schedule("* */6 * * *", async () => {
+  cron.schedule("0 */6 * * *", async () => {
     // * */6 * * *
     logger.warn(`Terminate FFmpeg Process ${new Date()}`);
     videoStreamProcessor.kill();
