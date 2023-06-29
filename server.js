@@ -80,7 +80,8 @@ async function init() {
 
       videoStreamProcessor.setVideoSources(sources);
       if (videoStreamProcessor.getVideoSources().length > 0) {
-        logger.info(videoStreamProcessor.getVideoSources());
+        // logger.info(videoStreamProcessor.getVideoSources());
+        console.log(videoStreamProcessor.getVideoSources());
         videoStreamProcessor.start();
       }
     }
