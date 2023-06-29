@@ -185,8 +185,8 @@ class VideoStreamProcessor {
   async start() {
     for (const rtspSource of this.videoSources) {
       if (this.processingVideos.has(rtspSource.name)) {
-        logger.info(`${rtspSource.name} is already being processed`);
-        // console.log(`${rtspSource.name} is already being processed`);
+        // logger.info(`${rtspSource.name} is already being processed`);
+        console.log(`${rtspSource.name} is already being processed`);
         continue;
       }
 
