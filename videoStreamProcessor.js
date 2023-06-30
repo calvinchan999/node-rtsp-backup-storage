@@ -230,19 +230,6 @@ class VideoStreamProcessor {
       // Add video to processing list
       this.processingVideos.add(rtspSource.name);
 
-      // const now = moment.utc();
-      // const timeToMidnight = moment.utc().endOf("day").diff(now);
-
-      // // Set up a timer to exit the current process at midnight UTC
-      // setTimeout(() => {
-      //   if (process && process !== undefined) {
-      //     logger.warn('Terminate child process - timeToMidnight');
-      //     process.exit();
-      //   }else {
-      //     logger.warn('Ensure the Child process is exist');
-      //   }
-      // }, timeToMidnight);
-
       // Add listener for process exit event
       process.on("exit", async (code, signal) => {
         const convertingFolderPath = path.join(
@@ -311,7 +298,7 @@ class VideoStreamProcessor {
           }
 
           const nonDuplicateTsFiles = _.difference(tsFiles, duplicateFiles);
-          const duplicateTsFiles = _.intersection(tsFiles, duplicateFiles);
+          // const duplicateTsFiles = _.intersection(tsFiles, duplicateFiles);
 
           if (nonDuplicateTsFiles.length > 0) {
             for (const file of nonDuplicateTsFiles) {
@@ -319,37 +306,49 @@ class VideoStreamProcessor {
               const inputName = `${convertingFolderPath}/${file}`;
               const videoDuration = await this.getVideoDuration(inputName);
 
-              const inputDatetimeFilter = fileNameWithoutExtension.substring(
-                fileNameWithoutExtension.indexOf("_") + 1
-              );
+              if (videoDuration) {
+                const inputDatetimeFilter = fileNameWithoutExtension.substring(
+                  fileNameWithoutExtension.indexOf("_") + 1
+                );
 
-              const endDateTime = moment(
-                moment(inputDatetimeFilter, "YYYY-MM-DD_HH-mm-ss").format(
-                  "YYYY-MM-DD HH:mm:ss"
+                const endDateTime = moment(
+                  moment(inputDatetimeFilter, "YYYY-MM-DD_HH-mm-ss").format(
+                    "YYYY-MM-DD HH:mm:ss"
+                  )
                 )
-              )
-                .add(videoDuration, "seconds")
-                .format("YYYY-MM-DD_HH-mm-ss");
+                  .add(videoDuration, "seconds")
+                  .format("YYYY-MM-DD_HH-mm-ss");
 
-              const outputName = `${convertingFolderPath}/${fileNameWithoutExtension}_${endDateTime}_${this.timezone}.mp4`;
+                const outputName = `${convertingFolderPath}/${fileNameWithoutExtension}_${endDateTime}_${this.timezone}.mp4`;
 
-              await ffmpeg(inputName)
-                .outputOptions("-c:v", "libx264")
-                .outputOptions("-movflags", "+faststart")
-                .output(outputName)
-                .on("end", async () => {
-                  logger.info("Conversion complete");
-                  // fs.unlinkSync(inputName);
-                  await this.deleteFile(inputName);
-                })
-                .on("error", async (err) => {
-                  logger.info(`Conversion error: ${err.message}`);
-                  // fs.unlinkSync(inputName);
-                  // await fs.promises.unlink(inputName);
-                  await this.deleteFile(inputName);
-                  logger.info(`${inputName} - deleted`);
-                })
-                .run();
+                await ffmpeg(inputName)
+                  // .outputOptions("-c:v", "libx264")
+                  // .outputOptions("-movflags", "+faststart")
+                  .outputOptions(
+                    "-c:v",
+                    "libx264",
+                    "-b:v",
+                    "500k",
+                    "-s",
+                    "426x240",
+                    "-r",
+                    "20",
+                    "-movflags",
+                    "+faststart"
+                  )
+                  .output(outputName)
+                  .on("end", async () => {
+                    logger.info("Conversion complete");
+                    await this.deleteFile(inputName);
+                  })
+                  .on("error", async (err) => {
+                    logger.info(`Conversion error: ${err.message}`);
+                    logger.info(`${inputName} - error file`);
+                    // await this.deleteFile(inputName);
+                    // logger.info(`${inputName} - deleted`);
+                  })
+                  .run();
+              }
             }
           }
 
@@ -377,43 +376,6 @@ class VideoStreamProcessor {
       this.threadQueue.push(process);
     }
   }
-
-  // async stopName(channel) {
-  //   const thread = this.threadQueue.find(
-  //     (thread) => thread.channelName === channel
-  //   );
-  //   if (thread) {
-  //     thread.kill();
-  //     try {
-  //       if (process.platform === "win32") {
-  //         // Windows-specific code goes here
-  //         const terminateProcess = (pid) => {
-  //           return new Promise((resolve, reject) => {
-  //             exec(`taskkill /pid ${pid} /T /F`, (error, stdout, stderr) => {
-  //               if (error) {
-  //                 reject(error);
-  //               } else {
-  //                 resolve();
-  //               }
-  //             });
-  //           });
-  //         };
-  //         terminateProcess(thread.pid);
-  //       } else {
-  //         // Non-Windows-specific code goes here
-  //         process.kill(thread.pid, "SIGKILL");
-  //       }
-  //     } catch (e) {
-  //       logger.error("The process not found or deleted");
-  //     }
-  //     await this.processingVideos.delete(channel);
-  //     const videoSources = await this.getVideoSources();
-  //     const filteredSources = videoSources.filter(
-  //       (source) => source.name === channel
-  //     );
-  //     await this.setVideoSources(filteredSources);
-  //   }
-  // }
 
   async terminateProcessByName(channelName) {
     const threadIndex = this.threadQueue.findIndex(
