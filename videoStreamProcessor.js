@@ -322,20 +322,20 @@ class VideoStreamProcessor {
                 const outputName = `${convertingFolderPath}/${fileNameWithoutExtension}_${endDateTime}_${this.timezone}.mp4`;
 
                 await ffmpeg(inputName)
-                  // .outputOptions("-c:v", "libx264")
-                  // .outputOptions("-movflags", "+faststart")
-                  .outputOptions(
-                    "-c:v",
-                    "libx264",
-                    "-b:v",
-                    "500k",
-                    "-s",
-                    "426x240",
-                    "-r",
-                    "20",
-                    "-movflags",
-                    "+faststart"
-                  )
+                  .outputOptions("-c:v", "libx264")
+                  .outputOptions("-movflags", "+faststart")
+                  // .outputOptions(
+                  //   "-c:v",
+                  //   "libx264",
+                  //   "-b:v",
+                  //   "500k",
+                  //   "-s",
+                  //   "426x240",
+                  //   "-r",
+                  //   "20",
+                  //   "-movflags",
+                  //   "+faststart"
+                  // )
                   .output(outputName)
                   .on("end", async () => {
                     logger.info("Conversion complete");

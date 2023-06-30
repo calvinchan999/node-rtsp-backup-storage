@@ -87,7 +87,7 @@ async function init() {
     }
   });
 
-  cron.schedule("0 */1 * * *", async () => {
+  cron.schedule("*/30 * * * *", async () => {
     logger.warn(`Upload To BlobContainer ${new Date()}`);
     // await videoStreamProcessor.stop();
     await videoStreamProcessor.uploadToBlobContainer("./video");
