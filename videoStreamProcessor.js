@@ -29,6 +29,45 @@ class VideoStreamProcessor {
     this.timezone = timezone;
   }
 
+  async updateFileName(convertingFolderPath, file, originFolder) {
+    const fileNameWithoutExtension = path.parse(file).name;
+    const inputName = `${
+      originFolder ? originFolder : convertingFolderPath
+    }/${file}`;
+    const videoDuration = await this.getVideoDuration(inputName);
+
+    if (videoDuration) {
+      const inputDatetimeFilter = fileNameWithoutExtension.substring(
+        fileNameWithoutExtension.indexOf("_") + 1
+      );
+
+      const endDateTime = moment(
+        moment(inputDatetimeFilter, "YYYY-MM-DD_HH-mm-ss").format(
+          "YYYY-MM-DD HH:mm:ss"
+        )
+      )
+        .add(videoDuration, "seconds")
+        .format("YYYY-MM-DD_HH-mm-ss");
+
+      const outputName = `${convertingFolderPath}/${fileNameWithoutExtension}_${endDateTime}_${this.timezone}.mp4`;
+      const outputPath = path.join(outputName);
+      const origin = path.join(
+        originFolder ? originFolder : convertingFolderPath,
+        file
+      );
+      console.log({ origin, outputPath });
+      fs.rename(origin, outputPath, (err) => {
+        if (err) {
+          logger.error(err);
+        } else {
+          logger.warn(
+            `${convertingFolderPath} ${file} File renamed successfully`
+          );
+        }
+      });
+    }
+  }
+
   async getVideoDuration(filePath) {
     return new Promise((resolve, reject) => {
       ffmpeg.ffprobe(filePath, (err, metadata) => {
@@ -120,64 +159,100 @@ class VideoStreamProcessor {
       const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
       await Promise.all(
-        mp4Files.map(async (file) => {
-          const fileNameWithoutExtension = path.parse(file).name;
-          const splitFileName = fileNameWithoutExtension.split("_");
-          const tsFileName = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}.ts`;
-          const tsFilePath = path.join(
-            videoFolderPath,
-            directory,
-            "converting",
-            tsFileName
+        mp4Files.forEach(async (file) => {
+          const blobName = `${directory}/${file}`;
+          const blobClient = this.blobContainerClient.getBlobClient(blobName);
+          const blockBlobClient = blobClient.getBlockBlobClient();
+          const readStream = fs.createReadStream(
+            path.join(videoFolderPath, directory, "converting", file)
           );
 
-          //         const readTsFile = await fs.existsSync(
-          //           `${videoFolderPath}/${directory}/converting/${tsFileName}`
-          //         );
-          if (!(await fs.existsSync(tsFilePath))) {
-            const blobName = `${directory}/${file}`;
-            const blobClient = this.blobContainerClient.getBlobClient(blobName);
-            const blockBlobClient = blobClient.getBlockBlobClient();
-            const readStream = fs.createReadStream(
-              path.join(videoFolderPath, directory, "converting", file)
+          readStream.on("error", (err) => {
+            logger.error(`Error reading ${file}: ${err}`);
+          });
+
+          const uploadOptions = {
+            bufferSize: 4 * 1024 * 1024,
+            maxBuffers: 20,
+          };
+
+          try {
+            await blockBlobClient.uploadStream(
+              readStream,
+              uploadOptions.bufferSize,
+              uploadOptions.maxBuffers,
+              {
+                blobHTTPHeaders: {
+                  blobContentType: "video/mp4",
+                },
+                metadata: {
+                  source: file,
+                },
+              }
             );
 
-            readStream.on("error", (err) => {
-              logger.error(`Error reading ${file}: ${err}`);
-            });
+            logger.info(`Uploaded ${file} to Azure Blob Storage`);
 
-            const uploadOptions = {
-              bufferSize: 4 * 1024 * 1024,
-              maxBuffers: 20,
-            };
-
-            try {
-              await blockBlobClient.uploadStream(
-                readStream,
-                uploadOptions.bufferSize,
-                uploadOptions.maxBuffers,
-                {
-                  blobHTTPHeaders: {
-                    blobContentType: "video/mp4",
-                  },
-                  metadata: {
-                    source: file,
-                  },
-                }
-              );
-
-              logger.info(`Uploaded ${file} to Azure Blob Storage`);
-
-              // await fs.promises.unlink(tsFilePath);
-              // logger.info(`Deleted ${tsFileName}`);
-              await this.deleteFile(
-                path.join(videoFolderPath, directory, "converting", file)
-              );
-            } catch (err) {
-              logger.error(`Error uploading ${file}: ${err}`);
-            }
+            await this.deleteFile(
+              path.join(videoFolderPath, directory, "converting", file)
+            );
+          } catch (err) {
+            logger.error(`Error uploading ${file}: ${err}`);
           }
         })
+        // mp4Files.map(async (file) => {
+        //   const fileNameWithoutExtension = path.parse(file).name;
+        //   const splitFileName = fileNameWithoutExtension.split("_");
+        //   const tsFileName = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}.ts`;
+        //   const tsFilePath = path.join(
+        //     videoFolderPath,
+        //     directory,
+        //     "converting",
+        //     tsFileName
+        //   );
+
+        //   if (!(await fs.existsSync(tsFilePath))) {
+        //     const blobName = `${directory}/${file}`;
+        //     const blobClient = this.blobContainerClient.getBlobClient(blobName);
+        //     const blockBlobClient = blobClient.getBlockBlobClient();
+        //     const readStream = fs.createReadStream(
+        //       path.join(videoFolderPath, directory, "converting", file)
+        //     );
+
+        //     readStream.on("error", (err) => {
+        //       logger.error(`Error reading ${file}: ${err}`);
+        //     });
+
+        //     const uploadOptions = {
+        //       bufferSize: 4 * 1024 * 1024,
+        //       maxBuffers: 20,
+        //     };
+
+        //     try {
+        //       await blockBlobClient.uploadStream(
+        //         readStream,
+        //         uploadOptions.bufferSize,
+        //         uploadOptions.maxBuffers,
+        //         {
+        //           blobHTTPHeaders: {
+        //             blobContentType: "video/mp4",
+        //           },
+        //           metadata: {
+        //             source: file,
+        //           },
+        //         }
+        //       );
+
+        //       logger.info(`Uploaded ${file} to Azure Blob Storage`);
+
+        //       await this.deleteFile(
+        //         path.join(videoFolderPath, directory, "converting", file)
+        //       );
+        //     } catch (err) {
+        //       logger.error(`Error uploading ${file}: ${err}`);
+        //     }
+        //   }
+        // })
       );
     }
   }
@@ -215,10 +290,10 @@ class VideoStreamProcessor {
           "-segment_time",
           "900",
           "-segment_format",
-          "mpegts",
+          "mp4",
           "-strftime",
           "1",
-          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.ts`,
+          `${videoFolderPath}/${rtspSource.name}_%Y-%m-%d_%H-%M-%S.mp4`,
         ],
         { detached: true, stdio: "ignore" }
       );
@@ -247,17 +322,15 @@ class VideoStreamProcessor {
           `Process ${process.channelName} has exited with code ${code} and signal ${signal}`
         );
 
-        // const files = await readdir(path.join(".", "video", process.channelName));
-
         const moveToConvertingFolder = (
           sourceFolderPath,
           convertingFolderPath
         ) => {
           return new Promise(async (resolve, reject) => {
             const files = await fs.promises.readdir(sourceFolderPath);
-            const tsFiles = files.filter((file) => file.endsWith(".ts"));
+            const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
-            tsFiles.forEach((file) => {
+            mp4Files.forEach((file) => {
               const sourcePath = path.join(sourceFolderPath, file);
               const destinationPath = path.join(convertingFolderPath, file);
               try {
@@ -278,97 +351,56 @@ class VideoStreamProcessor {
           const convertingfiles = await fs.promises.readdir(
             convertingFolderPath
           );
-          let tsFiles = convertingfiles.filter((file) => file.endsWith(".ts"));
-          const mp4Files = convertingfiles.filter((file) =>
-            file.endsWith(".mp4")
-          );
-
-          const duplicateFiles = [];
-
-          for (const tsFile of tsFiles) {
-            const tsResult = tsFile.substring(0, tsFile.lastIndexOf("."));
-            const matchingMp4Files = mp4Files.filter((mp4File) => {
-              const splitFileName = mp4File.split("_");
-              const mp4Result = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}`;
-              return mp4Result === tsResult;
-            });
-            if (matchingMp4Files.length > 0) {
-              duplicateFiles.push(tsFile);
+          const convertingMp4Files = convertingfiles.filter((file) => {
+            const splitFileName = file.split("_");
+            if (!splitFileName[2] || !splitFileName[3]) {
+              return file.endsWith(".mp4");
             }
+          });
+
+          for (const file of convertingMp4Files) {
+            await this.updateFileName(convertingFolderPath, file);
+            // const fileNameWithoutExtension = path.parse(file).name;
+            // const inputName = `${convertingFolderPath}/${file}`;
+            // const videoDuration = await this.getVideoDuration(inputName);
+
+            // if (videoDuration) {
+            //   const inputDatetimeFilter = fileNameWithoutExtension.substring(
+            //     fileNameWithoutExtension.indexOf("_") + 1
+            //   );
+
+            //   const endDateTime = moment(
+            //     moment(inputDatetimeFilter, "YYYY-MM-DD_HH-mm-ss").format(
+            //       "YYYY-MM-DD HH:mm:ss"
+            //     )
+            //   )
+            //     .add(videoDuration, "seconds")
+            //     .format("YYYY-MM-DD_HH-mm-ss");
+
+            //   const outputName = `${convertingFolderPath}/${fileNameWithoutExtension}_${endDateTime}_${this.timezone}.mp4`;
+            //   const outputPath = path.join(outputName);
+            //   const origin = path.join(convertingFolderPath, file);
+            //   fs.rename(origin, outputPath, (err) => {
+            //     if (err) {
+            //       logger.error(err);
+            //     } else {
+            //       logger.warn(
+            //         `${convertingFolderPath} ${file} File renamed successfully`
+            //       );
+            //     }
+            //   });
+            // }
           }
-
-          const nonDuplicateTsFiles = _.difference(tsFiles, duplicateFiles);
-          // const duplicateTsFiles = _.intersection(tsFiles, duplicateFiles);
-
-          if (nonDuplicateTsFiles.length > 0) {
-            for (const file of nonDuplicateTsFiles) {
-              const fileNameWithoutExtension = path.parse(file).name;
-              const inputName = `${convertingFolderPath}/${file}`;
-              const videoDuration = await this.getVideoDuration(inputName);
-
-              if (videoDuration) {
-                const inputDatetimeFilter = fileNameWithoutExtension.substring(
-                  fileNameWithoutExtension.indexOf("_") + 1
-                );
-
-                const endDateTime = moment(
-                  moment(inputDatetimeFilter, "YYYY-MM-DD_HH-mm-ss").format(
-                    "YYYY-MM-DD HH:mm:ss"
-                  )
-                )
-                  .add(videoDuration, "seconds")
-                  .format("YYYY-MM-DD_HH-mm-ss");
-
-                const outputName = `${convertingFolderPath}/${fileNameWithoutExtension}_${endDateTime}_${this.timezone}.mp4`;
-
-                await ffmpeg(inputName)
-                  .outputOptions("-c:v", "libx264")
-                  .outputOptions("-movflags", "+faststart")
-                  // .outputOptions(
-                  //   "-c:v",
-                  //   "libx264",
-                  //   "-b:v",
-                  //   "500k",
-                  //   "-s",
-                  //   "426x240",
-                  //   "-r",
-                  //   "20",
-                  //   "-movflags",
-                  //   "+faststart"
-                  // )
-                  .output(outputName)
-                  .on("end", async () => {
-                    logger.info("Conversion complete");
-                    await this.deleteFile(inputName);
-                  })
-                  .on("error", async (err) => {
-                    logger.info(`Conversion error: ${err.message}`);
-                    logger.info(`${inputName} - error file`);
-                    // await this.deleteFile(inputName);
-                    // logger.info(`${inputName} - deleted`);
-                  })
-                  .run();
-              }
-            }
-          }
-
-          // if (duplicateTsFiles.length > 0) {
-          //   for (const file of duplicateTsFiles) {
-          //     const inputName = `${convertingFolderPath}/${file}`;
-          //     await this.deleteFile(inputName);
-          //     logger.info(`duplicate file: ${inputName} - deleted`);
-          //   }
-          // }
-
-          this.processingVideos.delete(process.channelName);
-
-          const videoSources = this.getVideoSources();
-          const filteredSources = videoSources.filter(
-            (source) => source.name !== process.channelName
-          );
-          this.setVideoSources(filteredSources);
-          await this.terminateProcessByName(process.channelName);
         }
+
+        this.processingVideos.delete(process.channelName);
+
+        const videoSources = this.getVideoSources();
+        const filteredSources = videoSources.filter(
+          (source) => source.name !== process.channelName
+        );
+        this.setVideoSources(filteredSources);
+        await this.terminateProcessByName(process.channelName);
       });
 
       // Add thread to thread queue
@@ -514,11 +546,52 @@ class VideoStreamProcessor {
     }
   }
 
-  kill() {
-    const threadQueue = this.threadQueue;
-    for (const process of threadQueue) {
-      console.log(`Killing process ${process.channelName}`);
-      process.kill();
+  async updateCompletedVideo(filePath) {
+    const directories = await fs.promises.readdir(filePath);
+
+    for (const directory of directories) {
+      const convertingFolderPath = path.join(filePath, directory, "converting");
+      const originFolder = path.join(filePath, directory);
+      if (!fs.existsSync(convertingFolderPath)) {
+        fs.mkdirSync(convertingFolderPath);
+      }
+      const files = await fs.promises.readdir(path.join(filePath, directory));
+
+      const mp4Files = files.filter((file) => {
+        const splitFileName = file.split("_");
+        if (!splitFileName[2] || !splitFileName[3]) {
+          return file.endsWith(".mp4");
+        }
+      });
+
+      const result = Object.values(
+        mp4Files.reduce((acc, curr) => {
+          const currs = curr.split("_");
+          if (currs[1] && (!currs[2] || !currs[3])) {
+            const key = currs[0];
+            const dateStr = currs[1] + currs[2];
+            const date = moment.utc(dateStr, "YYYY-MM-DD_HH-mm-ss").toDate();
+            if (!acc[key] || date > acc[key].date) {
+              acc[key] = { key, date };
+            }
+            return acc;
+          } else {
+            return acc;
+          }
+        }, {})
+      );
+
+      const formattedResult = result.map(({ key, date }) => {
+        const formattedDate = moment.utc(date).format("YYYY-MM-DD_HH-mm-ss");
+        return `${key}_${formattedDate}.mp4`;
+      });
+
+      const convertedFiles = _.difference(mp4Files, formattedResult);
+      console.log(convertedFiles);
+
+      for (const file of convertedFiles) {
+        await this.updateFileName(convertingFolderPath, file, originFolder);
+      }
     }
   }
 }

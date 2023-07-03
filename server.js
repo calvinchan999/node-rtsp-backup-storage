@@ -81,23 +81,22 @@ async function init() {
       videoStreamProcessor.setVideoSources(sources);
       if (videoStreamProcessor.getVideoSources().length > 0) {
         // logger.info(videoStreamProcessor.getVideoSources());
-        console.log(videoStreamProcessor.getVideoSources());
+        // console.log(videoStreamProcessor.getVideoSources());
         videoStreamProcessor.start();
       }
     }
   });
 
+
   cron.schedule("*/30 * * * *", async () => {
+    videoStreamProcessor.updateCompletedVideo("./video");
+  })
+
+  cron.schedule("0 */1 * * *", async () => {
     logger.warn(`Upload To BlobContainer ${new Date()}`);
-    // await videoStreamProcessor.stop();
     await videoStreamProcessor.uploadToBlobContainer("./video");
   });
 
-  cron.schedule("0 */2 * * *", async () => {
-    // 0 */3 * * *   // */2 * * * *
-    logger.warn(`Terminate FFmpeg Process ${new Date()}`);
-    videoStreamProcessor.kill();
-  });
 }
 
 function getRtspApiResponse() {
