@@ -158,102 +158,102 @@ class VideoStreamProcessor {
 
       const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
-      await Promise.all(
-        mp4Files.forEach(async (file) => {
-          const blobName = `${directory}/${file}`;
-          const blobClient = this.blobContainerClient.getBlobClient(blobName);
-          const blockBlobClient = blobClient.getBlockBlobClient();
-          const readStream = fs.createReadStream(
-            path.join(videoFolderPath, directory, "converting", file)
+      // await Promise.all();
+      mp4Files.forEach(async (file) => {
+        const blobName = `${directory}/${file}`;
+        const blobClient = this.blobContainerClient.getBlobClient(blobName);
+        const blockBlobClient = blobClient.getBlockBlobClient();
+        const readStream = fs.createReadStream(
+          path.join(videoFolderPath, directory, "converting", file)
+        );
+
+        readStream.on("error", (err) => {
+          logger.error(`Error reading ${file}: ${err}`);
+        });
+
+        const uploadOptions = {
+          bufferSize: 4 * 1024 * 1024,
+          maxBuffers: 20,
+        };
+
+        try {
+          await blockBlobClient.uploadStream(
+            readStream,
+            uploadOptions.bufferSize,
+            uploadOptions.maxBuffers,
+            {
+              blobHTTPHeaders: {
+                blobContentType: "video/mp4",
+              },
+              metadata: {
+                source: file,
+              },
+            }
           );
 
-          readStream.on("error", (err) => {
-            logger.error(`Error reading ${file}: ${err}`);
-          });
+          logger.info(`Uploaded ${file} to Azure Blob Storage`);
 
-          const uploadOptions = {
-            bufferSize: 4 * 1024 * 1024,
-            maxBuffers: 20,
-          };
+          await this.deleteFile(
+            path.join(videoFolderPath, directory, "converting", file)
+          );
+        } catch (err) {
+          logger.error(`Error uploading ${file}: ${err}`);
+        }
+      });
+      
+      // mp4Files.map(async (file) => {
+      //   const fileNameWithoutExtension = path.parse(file).name;
+      //   const splitFileName = fileNameWithoutExtension.split("_");
+      //   const tsFileName = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}.ts`;
+      //   const tsFilePath = path.join(
+      //     videoFolderPath,
+      //     directory,
+      //     "converting",
+      //     tsFileName
+      //   );
 
-          try {
-            await blockBlobClient.uploadStream(
-              readStream,
-              uploadOptions.bufferSize,
-              uploadOptions.maxBuffers,
-              {
-                blobHTTPHeaders: {
-                  blobContentType: "video/mp4",
-                },
-                metadata: {
-                  source: file,
-                },
-              }
-            );
+      //   if (!(await fs.existsSync(tsFilePath))) {
+      //     const blobName = `${directory}/${file}`;
+      //     const blobClient = this.blobContainerClient.getBlobClient(blobName);
+      //     const blockBlobClient = blobClient.getBlockBlobClient();
+      //     const readStream = fs.createReadStream(
+      //       path.join(videoFolderPath, directory, "converting", file)
+      //     );
 
-            logger.info(`Uploaded ${file} to Azure Blob Storage`);
+      //     readStream.on("error", (err) => {
+      //       logger.error(`Error reading ${file}: ${err}`);
+      //     });
 
-            await this.deleteFile(
-              path.join(videoFolderPath, directory, "converting", file)
-            );
-          } catch (err) {
-            logger.error(`Error uploading ${file}: ${err}`);
-          }
-        })
-        // mp4Files.map(async (file) => {
-        //   const fileNameWithoutExtension = path.parse(file).name;
-        //   const splitFileName = fileNameWithoutExtension.split("_");
-        //   const tsFileName = `${splitFileName[0]}_${splitFileName[1]}_${splitFileName[2]}.ts`;
-        //   const tsFilePath = path.join(
-        //     videoFolderPath,
-        //     directory,
-        //     "converting",
-        //     tsFileName
-        //   );
+      //     const uploadOptions = {
+      //       bufferSize: 4 * 1024 * 1024,
+      //       maxBuffers: 20,
+      //     };
 
-        //   if (!(await fs.existsSync(tsFilePath))) {
-        //     const blobName = `${directory}/${file}`;
-        //     const blobClient = this.blobContainerClient.getBlobClient(blobName);
-        //     const blockBlobClient = blobClient.getBlockBlobClient();
-        //     const readStream = fs.createReadStream(
-        //       path.join(videoFolderPath, directory, "converting", file)
-        //     );
+      //     try {
+      //       await blockBlobClient.uploadStream(
+      //         readStream,
+      //         uploadOptions.bufferSize,
+      //         uploadOptions.maxBuffers,
+      //         {
+      //           blobHTTPHeaders: {
+      //             blobContentType: "video/mp4",
+      //           },
+      //           metadata: {
+      //             source: file,
+      //           },
+      //         }
+      //       );
 
-        //     readStream.on("error", (err) => {
-        //       logger.error(`Error reading ${file}: ${err}`);
-        //     });
+      //       logger.info(`Uploaded ${file} to Azure Blob Storage`);
 
-        //     const uploadOptions = {
-        //       bufferSize: 4 * 1024 * 1024,
-        //       maxBuffers: 20,
-        //     };
-
-        //     try {
-        //       await blockBlobClient.uploadStream(
-        //         readStream,
-        //         uploadOptions.bufferSize,
-        //         uploadOptions.maxBuffers,
-        //         {
-        //           blobHTTPHeaders: {
-        //             blobContentType: "video/mp4",
-        //           },
-        //           metadata: {
-        //             source: file,
-        //           },
-        //         }
-        //       );
-
-        //       logger.info(`Uploaded ${file} to Azure Blob Storage`);
-
-        //       await this.deleteFile(
-        //         path.join(videoFolderPath, directory, "converting", file)
-        //       );
-        //     } catch (err) {
-        //       logger.error(`Error uploading ${file}: ${err}`);
-        //     }
-        //   }
-        // })
-      );
+      //       await this.deleteFile(
+      //         path.join(videoFolderPath, directory, "converting", file)
+      //       );
+      //     } catch (err) {
+      //       logger.error(`Error uploading ${file}: ${err}`);
+      //     }
+      //   }
+      // })
     }
   }
 
