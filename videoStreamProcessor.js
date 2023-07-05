@@ -55,7 +55,7 @@ class VideoStreamProcessor {
         originFolder ? originFolder : convertingFolderPath,
         file
       );
-      console.log({ origin, outputPath });
+      
       fs.rename(origin, outputPath, (err) => {
         if (err) {
           logger.error(err);
@@ -596,6 +596,7 @@ class VideoStreamProcessor {
 
       for (const file of convertedFiles) {
         await this.updateFileName(convertingFolderPath, file, originFolder);
+
       }
     }
   }
