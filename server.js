@@ -91,14 +91,14 @@ async function init() {
     }
   });
 
-  // cron.schedule("*/5 * * * *", async () => { // */30 * * * *
-  //   videoStreamProcessor.updateCompletedVideo("./video");
-  // })
+  cron.schedule("*/5 * * * *", async () => { // */30 * * * *
+    videoStreamProcessor.updateCompletedVideo("./video");
+  })
 
-  // cron.schedule("*/1 * * * *", async () => { // 0 */1 * * *   */15 * * * *
-  //   logger.warn(`Upload To BlobContainer ${new Date()}`);
-  //   await videoStreamProcessor.uploadToBlobContainer("./video");
-  // });
+  cron.schedule("*/1 * * * *", async () => { // 0 */1 * * *   */15 * * * *
+    logger.warn(`Upload To BlobContainer ${new Date()}`);
+    await videoStreamProcessor.uploadToBlobContainer("./video");
+  });
 }
 
 function getRtspApiResponse() {
