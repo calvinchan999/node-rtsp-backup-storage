@@ -104,7 +104,7 @@ async function init() {
 function getRtspApiResponse() {
   return new Promise((resolve, reject) => {
     axios
-      .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v1/paths/lists`)
+      .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v1/paths/list`)
       .then((res) => resolve(res))
       .catch((err) => {
         logger.error(
