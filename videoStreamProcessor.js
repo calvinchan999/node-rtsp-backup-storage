@@ -55,7 +55,7 @@ class VideoStreamProcessor {
         originFolder ? originFolder : convertingFolderPath,
         file
       );
-      
+
       fs.rename(origin, outputPath, (err) => {
         if (err) {
           logger.error(err);
@@ -160,7 +160,7 @@ class VideoStreamProcessor {
 
       // await Promise.all();
       await mp4Files.forEach(async (file) => {
-        const splitFileName = file.split("_");
+        const splitFileName = file.split("_"); // e.g PATROL-02.1_2023-08-31_02-24-26_2023-08-31_02-39-26_GMT
         if (splitFileName[2] && splitFileName[3]) {
           const blobName = `${directory}/${file}`;
           const blobClient = this.blobContainerClient.getBlobClient(blobName);
@@ -201,8 +201,25 @@ class VideoStreamProcessor {
           } catch (err) {
             logger.error(`Error uploading ${file}: ${err}`);
           }
-        }else {
-          logger.warn(`${file} is not available`)
+        } else {
+          logger.warn(`${file} is not available`);
+          const videoCreatedAt = moment(
+            `${splitFileName[1]} ${splitFileName[2]}`,
+            "YYYY-MM-DD HH-mm-ss"
+          ).startOf("day");
+
+          const month = moment().startOf("day");
+          const duration = moment.duration(month.diff(videoCreatedAt));
+          const days = duration.asDays();
+          if (days >= 30) {
+            await this.deleteFile(
+              path.join(videoFolderPath, directory, "converting", file)
+            ).then(() => {
+              logger.info(
+                `${file} - deleted (incomplete or corrupted video), as the mp4 file has been stored for more than 30 days`
+              );
+            });
+          }
         }
       });
 
@@ -335,11 +352,15 @@ class VideoStreamProcessor {
             const files = await fs.promises.readdir(sourceFolderPath);
             const mp4Files = files.filter((file) => file.endsWith(".mp4"));
 
-            mp4Files.forEach((file) => {
+            mp4Files.forEach(async (file) => {
               const sourcePath = path.join(sourceFolderPath, file);
               const destinationPath = path.join(convertingFolderPath, file);
+
+              const videoDuration = await this.getVideoDuration(sourcePath);
               try {
-                fs.renameSync(sourcePath, destinationPath);
+                if (videoDuration) {
+                  fs.renameSync(sourcePath, destinationPath);
+                }
               } catch (e) {
                 logger.error(e);
               }
@@ -596,7 +617,6 @@ class VideoStreamProcessor {
 
       for (const file of convertedFiles) {
         await this.updateFileName(convertingFolderPath, file, originFolder);
-
       }
     }
   }
