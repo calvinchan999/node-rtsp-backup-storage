@@ -43,68 +43,76 @@ async function init() {
   }
 
   cron.schedule("*/5 * * * * *", async () => {
-    const channels = await getRtspApiResponse();
+    try {
+      const channels = await getRtspApiResponse();
 
-    const mapper = (data) => {
-      return new Promise((resolve, reject) => {
-        const result = {};
+      const mapper = (data) => {
+        return new Promise((resolve, reject) => {
+          const result = {};
 
-        for (const key in data) {
-          if (key.indexOf(".") !== -1) {
-            const [prefix, suffix] = key.split(".");
-            result[key] = data[key];
+          for (const key in data) {
+            if (key.indexOf(".") !== -1) {
+              const [prefix, suffix] = key.split(".");
+              result[key] = data[key];
 
-            if (
-              result.hasOwnProperty(prefix + ".0") &&
-              result.hasOwnProperty(prefix + ".1")
-            ) {
-              delete result[prefix + ".1"];
+              if (
+                result.hasOwnProperty(prefix + ".0") &&
+                result.hasOwnProperty(prefix + ".1")
+              ) {
+                delete result[prefix + ".1"];
+              }
             }
           }
-        }
-        resolve(result);
-      });
-    };
-
-    const channelsData = await mapper(channels.data.items);
-
-    if (channelsData) {
-      const sources = [];
-
-      for (const channel in channelsData) {
-        sources.push({
-          url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channel}`,
-          name: channel,
+          resolve(result);
         });
-      }
+      };
 
-      videoStreamProcessor.setVideoSources(sources);
-      if (videoStreamProcessor.getVideoSources().length > 0) {
-        // logger.info(videoStreamProcessor.getVideoSources());
-        // console.log(videoStreamProcessor.getVideoSources());
-        videoStreamProcessor.start();
+      const channelsData = await mapper(channels.data.items);
+
+      if (channelsData) {
+        const sources = [];
+
+        for (const channel in channelsData) {
+          sources.push({
+            url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channel}`,
+            name: channel,
+          });
+        }
+
+        videoStreamProcessor.setVideoSources(sources);
+        if (videoStreamProcessor.getVideoSources().length > 0) {
+          logger.info(videoStreamProcessor.getVideoSources());
+          // console.log(videoStreamProcessor.getVideoSources());
+          videoStreamProcessor.start();
+        }
       }
+    } catch (error) {
+      logger.error("An error occurred:", error);
     }
   });
 
+  // cron.schedule("*/5 * * * *", async () => { // */30 * * * *
+  //   videoStreamProcessor.updateCompletedVideo("./video");
+  // })
 
-  cron.schedule("*/5 * * * *", async () => { // */30 * * * *
-    videoStreamProcessor.updateCompletedVideo("./video");
-  })
-
-  cron.schedule("*/15 * * * *", async () => { // 0 */1 * * *
-    logger.warn(`Upload To BlobContainer ${new Date()}`);
-    await videoStreamProcessor.uploadToBlobContainer("./video");
-  });
-
+  // cron.schedule("*/1 * * * *", async () => { // 0 */1 * * *   */15 * * * *
+  //   logger.warn(`Upload To BlobContainer ${new Date()}`);
+  //   await videoStreamProcessor.uploadToBlobContainer("./video");
+  // });
 }
 
 function getRtspApiResponse() {
   return new Promise((resolve, reject) => {
     axios
-      .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v1/paths/list`)
+      .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v1/paths/lists`)
       .then((res) => resolve(res))
-      .catch((err) => reject(err));
+      .catch((err) => {
+        logger.error(
+          "An error occurred while fetching the API response:",
+          err
+        );
+        reject(err);
+      });
   });
 }
 

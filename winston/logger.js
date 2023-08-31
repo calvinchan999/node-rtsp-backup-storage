@@ -37,7 +37,7 @@ const logger = winston.createLogger({
       },
       containerName: config.log.azureContainerName,
       blobName: "log",
-      level: "info",
+      level: "debug",
       bufferLogSize: 1,
       syncTimeout: 0,
       rotatePeriod: "YYYY-MM-DD",
