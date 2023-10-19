@@ -43,65 +43,71 @@ async function init() {
   }
 
   cron.schedule("*/5 * * * * *", async () => {
-    // cloud rtsp backup
-    // const channels = await getRtspApiResponse();
+    try {
+      // cloud rtsp backup
+      // const channels = await getRtspApiResponse();
 
-    // const mapper = (data) => {
-    //   return new Promise((resolve, reject) => {
-    //     const result = {};
+      // const mapper = (data) => {
+      //   return new Promise((resolve, reject) => {
+      //     const result = {};
 
-    //     for (const key in data) {
-    //       if (key.indexOf(".") !== -1) {
-    //         const [prefix, suffix] = key.split(".");
-    //         result[key] = data[key];
+      //     for (const key in data) {
+      //       if (key.indexOf(".") !== -1) {
+      //         const [prefix, suffix] = key.split(".");
+      //         result[key] = data[key];
 
-    //         if (
-    //           result.hasOwnProperty(prefix + ".0") &&
-    //           result.hasOwnProperty(prefix + ".1")
-    //         ) {
-    //           delete result[prefix + ".1"];
-    //         }
-    //       }
-    //     }
-    //     resolve(result);
-    //   });
-    // };
+      //         if (
+      //           result.hasOwnProperty(prefix + ".0") &&
+      //           result.hasOwnProperty(prefix + ".1")
+      //         ) {
+      //           delete result[prefix + ".1"];
+      //         }
+      //       }
+      //     }
+      //     resolve(result);
+      //   });
+      // };
 
-    // const channelsData = await mapper(channels.data.items);
+      // const channelsData = await mapper(channels.data.items);
 
-    // if (channelsData) {
-    //   const sources = [];
+      // if (channelsData) {
+      //   const sources = [];
 
-    //   for (const channel in channelsData) {
-    //     sources.push({
-    //       url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channel}`,
-    //       name: channel,
-    //     });
-    //   }
+      //   for (const channel in channelsData) {
+      //     sources.push({
+      //       url: `${config.rtspProtocol}://${config.rtspServerUrl}/${channel}`,
+      //       name: channel,
+      //     });
+      //   }
 
-    //   videoStreamProcessor.setVideoSources(sources);
-    //   if (videoStreamProcessor.getVideoSources().length > 0) {
-    //     logger.info(videoStreamProcessor.getVideoSources());
-    //     // console.log(videoStreamProcessor.getVideoSources());
-    //     videoStreamProcessor.start();
-    //   }
-    // }
+      //   videoStreamProcessor.setVideoSources(sources);
+      //   if (videoStreamProcessor.getVideoSources().length > 0) {
+      //     logger.info(videoStreamProcessor.getVideoSources());
+      //     // console.log(videoStreamProcessor.getVideoSources());
+      //     videoStreamProcessor.start();
+      //   }
+      // }
 
-    // local rtsp backup
-    const localChannels = config.localCamera;
-    if (localChannels) {
-      videoStreamProcessor.setVideoSources(localChannels);
-      if (videoStreamProcessor.getVideoSources().length > 0) {
-        videoStreamProcessor.start();
+      // local rtsp backup
+      const localChannels = config.localCamera;
+      if (localChannels) {
+        videoStreamProcessor.setVideoSources(localChannels);
+        if (videoStreamProcessor.getVideoSources().length > 0) {
+          videoStreamProcessor.start();
+        }
       }
+    } catch (error) {
+      logger.error("An error occurred:", error);
     }
   });
 
-  cron.schedule("*/5 * * * *", async () => { // */30 * * * *
+  cron.schedule("*/5 * * * *", async () => {
+    // */30 * * * *
     videoStreamProcessor.updateCompletedVideo("./video");
-  })
+  });
 
-  cron.schedule("*/15 * * * *", async () => { // 0 */1 * * *
+  cron.schedule("*/15 * * * *", async () => {
+    // 0 */1 * * *   */15 * * * *
     logger.warn(`Upload To BlobContainer ${new Date()}`);
     await videoStreamProcessor.uploadToBlobContainer("./video");
   });
@@ -112,7 +118,10 @@ function getRtspApiResponse() {
     axios
       .get(`${config.httpProtocol}://${config.rtspApiServerUrl}/v1/paths/list`)
       .then((res) => resolve(res))
-      .catch((err) => reject(err));
+      .catch((err) => {
+        logger.error("An error occurred while fetching the API response:", err);
+        reject(err);
+      });
   });
 }
 
