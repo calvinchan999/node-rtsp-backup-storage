@@ -12,13 +12,13 @@ const config = {
     connectionString:
       process.env.CONNECTION_STRING ??
       "DefaultEndpointsProtocol=https;AccountName=devstgeacct;AccountKey=vZcNu8pCri5kX7rpBeHe+g9EbvX3ADRbFtA6G1jJvi/iECao9IlgAWbcC5qNhmnvGEdf5jSypfdp+AStk4Elvw==;EndpointSuffix=core.windows.net",
-    container: process.env.AZURE_CONTAINER ?? "stream",
+    container: process.env.AZURE_CONTAINER ?? "test",
     azureBlobToken:
       process.env.AZURE_BLOB_TOKEN ??
-      "sp=racwdli&st=2023-04-03T03:27:53Z&se=2050-03-04T11:27:53Z&spr=https&sv=2021-12-02&sr=c&sig=Bn6FMpyd0rWNU8nKGEAMuZzq72GvWWvo78HT3EMP9NA%3D",
+      "sp=r&st=2023-10-19T04:00:26Z&se=2023-10-19T12:00:26Z&spr=https&sv=2022-11-02&sr=c&sig=vM8%2BTw93MxoJVAv3xBCr3r%2FLCAouEPggUDAXgw%2BMt5g%3D",
     azureBlobUrl:
       process.env.AZURE_BLOB_URL ??
-      "https://devstgeacct.blob.core.windows.net/stream?sp=racwdli&st=2023-04-03T03:27:53Z&se=2050-03-04T11:27:53Z&spr=https&sv=2021-12-02&sr=c&sig=Bn6FMpyd0rWNU8nKGEAMuZzq72GvWWvo78HT3EMP9NA%3D",
+      "https://devstgeacct.blob.core.windows.net/test?sp=r&st=2023-10-19T04:00:26Z&se=2023-10-19T12:00:26Z&spr=https&sv=2022-11-02&sr=c&sig=vM8%2BTw93MxoJVAv3xBCr3r%2FLCAouEPggUDAXgw%2BMt5g%3D",
   },
   log: {
     azureStorageName: process.env.STORAGE_ACCOUNT_NAME ?? "qmhstgeacct",
@@ -28,5 +28,12 @@ const config = {
     azureContainerName:
       process.env.AZURE_LOGS_CONTAINER_NAME ?? "qmh-backup-storage-logs",
   },
+  localCamera: [
+    {
+      name: "rv-01",
+      url: "rtsp://admin:rvautotech2015@169.254.33.165:554/Streaming/Channels/101",
+    },
+  ],
+  videoOutputResolution: "640x360"
 };
 module.exports = config;
