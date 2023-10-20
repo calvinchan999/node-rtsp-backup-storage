@@ -336,24 +336,24 @@ class VideoStreamProcessor {
 
         const sourceFolderPath = "./video/" + process.channelName;
 
-        if (
-          await moveToConvertingFolder(sourceFolderPath, convertingFolderPath)
-        ) {
-          const convertingfiles = await fs.promises.readdir(
-            convertingFolderPath
-          );
+        // if (
+        //   await moveToConvertingFolder(sourceFolderPath, convertingFolderPath)
+        // ) {
+        //   const convertingfiles = await fs.promises.readdir(
+        //     convertingFolderPath
+        //   );
 
-          const convertingMp4Files = convertingfiles.filter((file) => {
-            const splitFileName = file.split("_");
-            if (!splitFileName[2] || !splitFileName[3]) {
-              return file.endsWith(".mp4");
-            }
-          });
+        //   const convertingMp4Files = convertingfiles.filter((file) => {
+        //     const splitFileName = file.split("_");
+        //     if (!splitFileName[2] || !splitFileName[3]) {
+        //       return file.endsWith(".mp4");
+        //     }
+        //   });
 
-          for (const file of convertingMp4Files) {
-            await this.updateFileName(convertingFolderPath, file);
-          }
-        }
+        //   for (const file of convertingMp4Files) {
+        //     await this.updateFileName(convertingFolderPath, file);
+        //   }
+        // }
 
         this.processingVideos.delete(process.channelName);
 
@@ -526,6 +526,9 @@ class VideoStreamProcessor {
         }
       });
 
+      // mp4Files
+      // [ 'rv-01_2023-10-19_15-22-28.mp4', 'rv-01_2023-10-19_15-37-28.mp4' ]
+
       const result = Object.values(
         mp4Files.reduce((acc, curr) => {
           const currs = curr.split("_");
@@ -543,12 +546,17 @@ class VideoStreamProcessor {
         }, {})
       );
 
+      // result
+      // [ { key: 'rv-01', date: 2023-10-19T15:37:28.000Z } ]
+
       const formattedResult = result.map(({ key, date }) => {
         const formattedDate = moment.utc(date).format("YYYY-MM-DD_HH-mm-ss");
         return `${key}_${formattedDate}.mp4`;
       });
 
       const convertedFiles = _.difference(mp4Files, formattedResult);
+      // convertedFiles
+      // [ 'rv-01_2023-10-19_15-22-28.mp4' ]
 
       for (const file of convertedFiles) {
         await this.updateFileName(convertingFolderPath, file, originFolder);
